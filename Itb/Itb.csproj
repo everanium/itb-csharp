@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Itb</RootNamespace>
+    <AssemblyName>Itb</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package metadata">
+    <PackageId>Itb</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>everanium</Authors>
+    <Description>C# / .NET binding for ITB (information-theoretic barrier) cipher via the libitb shared library.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>cryptography;cipher;ouroboros;ffi;itb</PackageTags>
+    <RepositoryUrl>https://github.com/everanium/itb</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup Label="Assembly visibility for tests + benches">
+    <InternalsVisibleTo Include="Itb.Tests" />
+    <InternalsVisibleTo Include="Itb.Bench" />
+  </ItemGroup>
+
+</Project>
