@@ -55,52 +55,48 @@ ITB_BENCH_FILTER=BenchmarkStreamingTriple \
 * Streaming plaintext: 64 MiB random; chunk size 16 MiB.
 * Decrypt-only sub-benches refresh the working wire from a pristine pre-built copy each iteration via the `Wrap` (alloc) path; the cost is included in the timed total. This overhead is small relative to ITB's Decrypt cost on this hardware.
 
-### Wrapper Only round-trip (16 MiB plaintext, encrypt + decrypt timed together)
+### Wrapper only round-trip (16 MiB plaintext, encrypt + decrypt timed together)
 
 | Outer cipher | `Wrap` (alloc) MB/s | `WrapInPlace` (zero alloc) MB/s |
 |---|---|---|
-| **AES-128-CTR** | TBD by orchestrator | TBD by orchestrator |
-| **ChaCha20** | TBD by orchestrator | TBD by orchestrator |
-| **SipHash-CTR** | TBD by orchestrator | TBD by orchestrator |
-
-`WrapInPlace` mutates the caller's `Span<byte>` and returns the per-stream nonce; the steady-state allocation is one nonce buffer (~16 bytes) per call. `Wrap` returns a fresh wire = `nonce || keystream-XOR(blob)` and allocates `nonce.Length + blob.Length` bytes per call. The AES delta is dominated by the heap-page-fault cost of the 16 MiB output buffer; ChaCha20 and SipHash-CTR are compute-bound and the allocation savings are largely absorbed by the keystream throughput ceiling.
+| **AES-128-CTR** | 2036 | **2948** |
+| **ChaCha20** | 310 | **322** |
+| **SipHash-CTR** | 264 | **268** |
 
 ### Single Message — Single Ouroboros (16 MiB plaintext)
 
 | Mode | AES Enc | AES Dec | ChaCha Enc | ChaCha Dec | SipHash Enc | SipHash Dec |
 |---|---|---|---|---|---|---|
-| **Easy** No MAC | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Easy** MAC Authenticated | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Low-Level** No MAC | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Low-Level** MAC Authenticated | TBD | TBD | TBD | TBD | TBD | TBD |
+| **Easy** No MAC | 182 | 257 | 141 | 186 | 135 | 173 |
+| **Easy** MAC Authenticated | 170 | 247 | 134 | 177 | 128 | 164 |
+| **Low-Level** No MAC | 177 | 252 | 140 | 180 | 134 | 171 |
+| **Low-Level** MAC Authenticated | 169 | 235 | 131 | 174 | 129 | 164 |
 
 ### Single Message — Triple Ouroboros (16 MiB plaintext)
 
 | Mode | AES Enc | AES Dec | ChaCha Enc | ChaCha Dec | SipHash Enc | SipHash Dec |
 |---|---|---|---|---|---|---|
-| **Easy** No MAC | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Easy** MAC Authenticated | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Low-Level** No MAC | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Low-Level** MAC Authenticated | TBD | TBD | TBD | TBD | TBD | TBD |
+| **Easy** No MAC | 245 | 290 | 177 | 199 | 167 | 188 |
+| **Easy** MAC Authenticated | 221 | 268 | 164 | 194 | 156 | 180 |
+| **Low-Level** No MAC | 240 | 280 | 169 | 198 | 165 | 173 |
+| **Low-Level** MAC Authenticated | 218 | 264 | 164 | 189 | 155 | 176 |
 
 ### Streaming — Single Ouroboros (64 MiB plaintext, 16 MiB chunk size)
 
 | Mode | AES Enc | AES Dec | ChaCha Enc | ChaCha Dec | SipHash Enc | SipHash Dec |
 |---|---|---|---|---|---|---|
-| **Streaming AEAD Easy** IO-Driven | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Streaming AEAD Low-Level** IO-Driven | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Streaming Easy** No MAC, User-Driven Loop | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Streaming Low-Level** No MAC, User-Driven Loop | TBD | TBD | TBD | TBD | TBD | TBD |
+| **Streaming AEAD Easy** IO-Driven | 147 | 185 | 123 | 147 | 121 | 140 |
+| **Streaming AEAD Low-Level** IO-Driven | 150 | 191 | 120 | 145 | 117 | 139 |
+| **Streaming Easy** No MAC, User-Driven Loop | 168 | 230 | 125 | 161 | 124 | 155 |
+| **Streaming Low-Level** No MAC, User-Driven Loop | 163 | 225 | 130 | 167 | 123 | 154 |
 
 ### Streaming — Triple Ouroboros (64 MiB plaintext, 16 MiB chunk size)
 
 | Mode | AES Enc | AES Dec | ChaCha Enc | ChaCha Dec | SipHash Enc | SipHash Dec |
 |---|---|---|---|---|---|---|
-| **Streaming AEAD Easy** IO-Driven | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Streaming AEAD Low-Level** IO-Driven | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Streaming Easy** No MAC, User-Driven Loop | TBD | TBD | TBD | TBD | TBD | TBD |
-| **Streaming Low-Level** No MAC, User-Driven Loop | TBD | TBD | TBD | TBD | TBD | TBD |
-
-The Easy and Low-Level paths land within run-to-run noise on every cipher × direction cell. Triple Ouroboros consistently outpaces Single — the three parallel encryption pipes saturate more of the available HT. Decrypt outperforms Encrypt because the encrypt path runs additional per-pixel work that decrypt does not (nonce derivation + barrier prefill).
+| **Streaming AEAD Easy** IO-Driven | 195 | 217 | 143 | 165 | 144 | 153 |
+| **Streaming AEAD Low-Level** IO-Driven | 195 | 218 | 149 | 158 | 140 | 151 |
+| **Streaming Easy** No MAC, User-Driven Loop | 211 | 253 | 159 | 181 | 148 | 168 |
+| **Streaming Low-Level** No MAC, User-Driven Loop | 210 | 251 | 158 | 179 | 152 | 168 |
 
 This file is updated by re-running the reproduction command and pasting the bench output into the tables. Numbers above are rounded to MB/s.
