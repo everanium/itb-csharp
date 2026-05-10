@@ -636,4 +636,82 @@ internal static unsafe partial class ItbNative
         byte* streamID, ulong cumulativePixelOffset,
         byte* @out, nuint outCap, out nuint outLen,
         out int finalFlagOut);
+
+    // ----------------------------------------------------------------
+    // Format-deniability wrapper — outer keystream cipher
+    // (AES-128-CTR / ChaCha20 / SipHash-2-4 in CTR mode) over an ITB
+    // ciphertext blob or bytestream. Mirrors the 12 ITB_Wrap* /
+    // ITB_Unwrap* / ITB_WrapStream* / ITB_UnwrapStream* /
+    // ITB_WrapperKeySize / ITB_WrapperNonceSize exports in
+    // cmd/cshared/main.go. cipherName accepts "aes" / "chacha" /
+    // "siphash"; every other entry follows the standard
+    // probe-allocate-call idiom. The streaming Init / Update / Free
+    // triple owns one wrap-stream handle (uintptr_t on the C side,
+    // nuint here); pair every Init with exactly one Free.
+    // ----------------------------------------------------------------
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_WrapperKeySize(string cipherName, out nuint outSize);
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_WrapperNonceSize(string cipherName, out nuint outSize);
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_Wrap(
+        string cipherName,
+        byte* key, nuint keyLen,
+        byte* blob, nuint blobLen,
+        byte* @out, nuint outCap, out nuint outLen);
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_Unwrap(
+        string cipherName,
+        byte* key, nuint keyLen,
+        byte* wire, nuint wireLen,
+        byte* @out, nuint outCap, out nuint outLen);
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_WrapInPlace(
+        string cipherName,
+        byte* key, nuint keyLen,
+        byte* blob, nuint blobLen,
+        byte* outNonce, nuint nonceCap);
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_UnwrapInPlace(
+        string cipherName,
+        byte* key, nuint keyLen,
+        byte* wire, nuint wireLen);
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_WrapStreamWriter_Init(
+        string cipherName,
+        byte* key, nuint keyLen,
+        byte* outNonce, nuint nonceCap,
+        out nuint outHandle);
+
+    [LibraryImport("libitb")]
+    internal static partial int ITB_WrapStreamWriter_Update(
+        nuint handle,
+        byte* src, nuint srcLen,
+        byte* dst, nuint dstCap);
+
+    [LibraryImport("libitb")]
+    internal static partial int ITB_WrapStreamWriter_Free(nuint handle);
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_UnwrapStreamReader_Init(
+        string cipherName,
+        byte* key, nuint keyLen,
+        byte* wireNonce, nuint nonceLen,
+        out nuint outHandle);
+
+    [LibraryImport("libitb")]
+    internal static partial int ITB_UnwrapStreamReader_Update(
+        nuint handle,
+        byte* src, nuint srcLen,
+        byte* dst, nuint dstCap);
+
+    [LibraryImport("libitb")]
+    internal static partial int ITB_UnwrapStreamReader_Free(nuint handle);
 }

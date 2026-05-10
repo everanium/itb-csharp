@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Itb.Bench/Itb.Bench.csproj" />
+  <Project Path="Itb.Eitb/Itb.Eitb.csproj" />
   <Project Path="Itb.Tests/Itb.Tests.csproj" />
   <Project Path="Itb/Itb.csproj" />
 </Solution>

@@ -53,7 +53,7 @@ namespace Itb.Bench;
 internal static class BenchStream
 {
     // Streaming-bench configuration constants — held local to this
-    // module so the existing 16-MiB single-shot cases in BenchSingle /
+    // module so the existing 16-MiB Single Message cases in BenchSingle /
     // BenchTriple keep their own Common.Payload16MB constant and
     // remain unaffected.
 
@@ -121,7 +121,7 @@ internal static class BenchStream
     // timed body. Default config — bit-soup / lock-soup / lock-seed
     // are NOT engaged on these encryptors regardless of the
     // ITB_LOCKSEED env var, so the streaming numbers report the bare
-    // streaming overhead independent of the existing single-shot
+    // streaming overhead independent of the existing Single Message
     // ±LockSeed bench arms.
     // ----------------------------------------------------------------
 

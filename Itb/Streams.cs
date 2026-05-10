@@ -1,4 +1,4 @@
-// File-like streaming wrappers over the one-shot ITB encrypt / decrypt
+// File-like streaming wrappers over the Single Message ITB encrypt / decrypt
 // API.
 //
 // ITB ciphertexts cap at ~64 MB plaintext per chunk (the underlying

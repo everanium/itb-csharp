@@ -1,13 +1,17 @@
 // CLI dispatcher for the C# Easy Mode bench harness.
 //
-// Two pass shapes are exposed:
+// Three pass shapes are exposed:
 //
 //     dotnet run --project Itb.Bench -c Release -- single
 //     dotnet run --project Itb.Bench -c Release -- triple
+//     dotnet run --project Itb.Bench -c Release -- wrapper
 //
 // The orchestrator runs four passes (Single / Triple × ±LockSeed at
-// min_seconds=5) and folds the per-pass output into BENCH.md. See
-// Common.cs for the supported ITB_NONCE_BITS / ITB_LOCKSEED /
+// min_seconds=5) and folds the per-pass output into BENCH.md. The
+// wrapper pass covers the format-deniability outer cipher matrix
+// (102 sub-benches across 3 outer ciphers × Wrapper Only / Message
+// Single / Message Triple / Streaming Single / Streaming Triple).
+// See Common.cs for the supported ITB_NONCE_BITS / ITB_LOCKSEED /
 // ITB_BENCH_FILTER / ITB_BENCH_MIN_SEC environment variables.
 
 namespace Itb.Bench;
@@ -31,13 +35,16 @@ internal static class Program
             case "triple":
                 BenchTriple.Run();
                 return 0;
+            case "wrapper":
+                Itb.Bench.Wrapper.BenchWrapper.Run();
+                return 0;
             case "-h":
             case "--help":
             case "help":
                 PrintUsage();
                 return 0;
             default:
-                Console.Error.WriteLine($"unknown mode \"{mode}\" (expected \"single\" or \"triple\")");
+                Console.Error.WriteLine($"unknown mode \"{mode}\" (expected \"single\", \"triple\", or \"wrapper\")");
                 PrintUsage();
                 return 2;
         }
@@ -48,8 +55,9 @@ internal static class Program
         Console.WriteLine("usage: Itb.Bench <mode>");
         Console.WriteLine();
         Console.WriteLine("modes:");
-        Console.WriteLine("  single   Single-Ouroboros bench grid (9 primitives + 1 mixed × 4 ops = 40 cases)");
-        Console.WriteLine("  triple   Triple-Ouroboros bench grid (9 primitives + 1 mixed × 4 ops = 40 cases)");
+        Console.WriteLine("  single    Single-Ouroboros bench grid (9 primitives + 1 mixed × 4 ops = 40 cases)");
+        Console.WriteLine("  triple    Triple-Ouroboros bench grid (9 primitives + 1 mixed × 4 ops = 40 cases)");
+        Console.WriteLine("  wrapper   Format-deniability wrapper bench matrix (102 sub-benches)");
         Console.WriteLine();
         Console.WriteLine("environment:");
         Console.WriteLine("  ITB_NONCE_BITS     128 / 256 / 512  (default 128)");

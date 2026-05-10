@@ -118,10 +118,13 @@ the encryptor and the file streams.
 using System.IO;
 using System.Security.Cryptography;
 using Itb;
+using Itb.Wrapper;
+using OuterCipher = Itb.Wrapper.Cipher;
 
 const string SRC_PATH = "/tmp/64mb.src";
 const string ENC_PATH = "/tmp/64mb.enc";
 const string DST_PATH = "/tmp/64mb.dst";
+const string INNER_PATH = "/tmp/64mb.inner";
 const int CHUNK_SIZE = 16 * 1024 * 1024;
 
 static string Sha256Of(string path)
@@ -138,17 +141,54 @@ if (!File.Exists(SRC_PATH) || new FileInfo(SRC_PATH).Length != 64L * 1024 * 1024
     File.WriteAllBytes(SRC_PATH, buf);
 }
 
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
+
 using var enc = new Encryptor("areion512", 1024, "hmac-blake3", "single");
+
+// Sender — encrypt to an intermediate file, then wrap end-to-end
+// through one keystream session.
 using (var fin = File.OpenRead(SRC_PATH))
-using (var fout = File.Create(ENC_PATH))
+using (var fout = File.Create(INNER_PATH))
 {
     enc.EncryptStreamAuth(fin, fout, CHUNK_SIZE);
 }
+// Format-deniability ITB masking via outer-cipher streaming wrapper (AES-128-CTR) - same ~0% overhead in stream mode (Recommended in every case).
+using (var ww = new WrapStreamWriter(OuterCipher.Aes128Ctr, outerKey))
+using (var fin = File.OpenRead(INNER_PATH))
+using (var fout = File.Create(ENC_PATH))
+{
+    fout.Write(ww.Nonce);
+    var buf = new byte[CHUNK_SIZE];
+    int n;
+    while ((n = fin.Read(buf, 0, buf.Length)) > 0)
+    {
+        fout.Write(ww.Update(buf.AsSpan(0, n)));
+    }
+}
+File.Delete(INNER_PATH);
+
+// Receiver — strip the leading nonce, unwrap the body, decrypt.
 using (var fin = File.OpenRead(ENC_PATH))
+{
+    var nlen = Wrapper.NonceSize(OuterCipher.Aes128Ctr);
+    var nonceBuf = new byte[nlen];
+    fin.ReadExactly(nonceBuf);
+    using var ur = new UnwrapStreamReader(OuterCipher.Aes128Ctr, outerKey, nonceBuf);
+    using var fout = File.Create(INNER_PATH);
+    var buf = new byte[CHUNK_SIZE];
+    int n;
+    while ((n = fin.Read(buf, 0, buf.Length)) > 0)
+    {
+        fout.Write(ur.Update(buf.AsSpan(0, n)));
+    }
+}
+using (var fin = File.OpenRead(INNER_PATH))
 using (var fout = File.Create(DST_PATH))
 {
     enc.DecryptStreamAuth(fin, fout, CHUNK_SIZE);
 }
+File.Delete(INNER_PATH);
 
 string srcHash = Sha256Of(SRC_PATH);
 string dstHash = Sha256Of(DST_PATH);
@@ -215,10 +255,13 @@ encryptor.
 using System.IO;
 using System.Security.Cryptography;
 using Itb;
+using Itb.Wrapper;
+using OuterCipher = Itb.Wrapper.Cipher;
 
 const string SRC_PATH = "/tmp/64mb.src";
 const string ENC_PATH = "/tmp/64mb.enc";
 const string DST_PATH = "/tmp/64mb.dst";
+const string INNER_PATH = "/tmp/64mb.inner";
 const int CHUNK_SIZE = 16 * 1024 * 1024;
 
 static string Sha256Of(string path)
@@ -234,16 +277,51 @@ using var start = new Seed("areion512", 1024);
 var macKey = RandomNumberGenerator.GetBytes(32);
 using var mac = new Mac("hmac-blake3", macKey);
 
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
+
+// Sender — encrypt to an intermediate file, then wrap end-to-end.
 using (var fin = File.OpenRead(SRC_PATH))
-using (var fout = File.Create(ENC_PATH))
+using (var fout = File.Create(INNER_PATH))
 {
     StreamPipeline.EncryptStreamAuth(noise, data, start, mac, fin, fout, CHUNK_SIZE);
 }
+// Format-deniability ITB masking via outer-cipher streaming wrapper (AES-128-CTR) - same ~0% overhead in stream mode (Recommended in every case).
+using (var ww = new WrapStreamWriter(OuterCipher.Aes128Ctr, outerKey))
+using (var fin = File.OpenRead(INNER_PATH))
+using (var fout = File.Create(ENC_PATH))
+{
+    fout.Write(ww.Nonce);
+    var buf = new byte[CHUNK_SIZE];
+    int n;
+    while ((n = fin.Read(buf, 0, buf.Length)) > 0)
+    {
+        fout.Write(ww.Update(buf.AsSpan(0, n)));
+    }
+}
+File.Delete(INNER_PATH);
+
+// Receiver
 using (var fin = File.OpenRead(ENC_PATH))
+{
+    var nlen = Wrapper.NonceSize(OuterCipher.Aes128Ctr);
+    var nonceBuf = new byte[nlen];
+    fin.ReadExactly(nonceBuf);
+    using var ur = new UnwrapStreamReader(OuterCipher.Aes128Ctr, outerKey, nonceBuf);
+    using var fout = File.Create(INNER_PATH);
+    var buf = new byte[CHUNK_SIZE];
+    int n;
+    while ((n = fin.Read(buf, 0, buf.Length)) > 0)
+    {
+        fout.Write(ur.Update(buf.AsSpan(0, n)));
+    }
+}
+using (var fin = File.OpenRead(INNER_PATH))
 using (var fout = File.Create(DST_PATH))
 {
     StreamPipeline.DecryptStreamAuth(noise, data, start, mac, fin, fout, CHUNK_SIZE);
 }
+File.Delete(INNER_PATH);
 
 string srcHash = Sha256Of(SRC_PATH);
 string dstHash = Sha256Of(DST_PATH);
@@ -308,6 +386,11 @@ encrypt vs HMAC-SHA256's ~15% vs KMAC-256's ~44%).
 // Sender
 
 using Itb;
+using Itb.Wrapper;
+using OuterCipher = Itb.Wrapper.Cipher;
+
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 // Per-instance configuration — mutates only this encryptor's
 // Config. Two encryptors built side-by-side carry independent
@@ -353,16 +436,23 @@ var plaintext = "any text or binary data - including 0x00 bytes"u8.ToArray();
 var encrypted = enc.EncryptAuth(plaintext);
 Console.WriteLine($"encrypted: {encrypted.Length} bytes");
 
-// Send encrypted payload + state blob; Dispose at scope end (via
-// using var) releases the handle and zeroes the per-encryptor
-// output buffer. enc.Close() is the explicit zeroisation entry
-// point that does not release the handle.
+// Format-deniability ITB masking through outer cipher AES-128-CTR with ~0% overhead over ITB Encrypt / Decrypt (Recommended in every case).
+var nonce = Wrapper.WrapInPlace(OuterCipher.Aes128Ctr, outerKey, encrypted);
+var wire = new byte[nonce.Length + encrypted.Length];
+Buffer.BlockCopy(nonce, 0, wire, 0, nonce.Length);
+Buffer.BlockCopy(encrypted, 0, wire, nonce.Length, encrypted.Length);
+Console.WriteLine($"wire: {wire.Length} bytes");
+
+// Send wire + state blob; Dispose at scope end (via using var)
+// releases the handle and zeroes the per-encryptor output buffer.
+// enc.Close() is the explicit zeroisation entry point that does
+// not release the handle.
 
 
 // Receiver
 
-// Receive encrypted payload + state blob
-// var encrypted = ...;
+// Receive wire + state blob
+// var wire = ...;
 // var blob = ...;
 
 Library.MaxWorkers = 8;   // limit to 8 CPU cores (default: 0 = all CPUs)
@@ -397,13 +487,17 @@ dec.SetLockSoup(1);
 // LockSoup / LockSeed) from the saved blob.
 dec.Import(blob);
 
+// Strip the leading nonce, unwrap the body, then decrypt.
+var recoveredSpan = Wrapper.UnwrapInPlace(OuterCipher.Aes128Ctr, outerKey, wire);
+var recovered = recoveredSpan.ToArray();
+
 // Authenticated decrypt — any single-bit tamper triggers MAC
 // failure (no oracle leak about which byte was tampered). Mismatch
 // surfaces as ItbException with status MacFailure, not a corrupted
 // plaintext.
 try
 {
-    var decrypted = dec.DecryptAuth(encrypted);
+    var decrypted = dec.DecryptAuth(recovered);
     Console.WriteLine($"decrypted: {System.Text.Encoding.UTF8.GetString(decrypted)}");
 }
 catch (ItbException ex) when (ex.Status == StatusCode.MacFailure)
@@ -428,6 +522,11 @@ and calls `Import` to restore.
 // Sender
 
 using Itb;
+using Itb.Wrapper;
+using OuterCipher = Itb.Wrapper.Cipher;
+
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 // Per-slot primitive selection (Single Ouroboros, 3 + 1 slots).
 // Every name must share the same native hash width — mixing widths
@@ -467,11 +566,17 @@ var blob = enc.Export();
 var plaintext = "mixed-primitive Easy Mode payload"u8.ToArray();
 var encrypted = enc.EncryptAuth(plaintext);
 
+// Format-deniability ITB masking through outer cipher AES-128-CTR with ~0% overhead over ITB Encrypt / Decrypt (Recommended in every case).
+var nonce = Wrapper.WrapInPlace(OuterCipher.Aes128Ctr, outerKey, encrypted);
+var wire = new byte[nonce.Length + encrypted.Length];
+Buffer.BlockCopy(nonce, 0, wire, 0, nonce.Length);
+Buffer.BlockCopy(encrypted, 0, wire, nonce.Length, encrypted.Length);
+
 
 // Receiver
 
-// Receive encrypted payload + state blob
-// var encrypted = ...;
+// Receive wire + state blob
+// var wire = ...;
 // var blob = ...;
 
 // Receiver constructs a matching mixed encryptor — every per-slot
@@ -489,7 +594,11 @@ using var dec = Encryptor.Mixed(
 
 dec.Import(blob);
 
-var decrypted = dec.DecryptAuth(encrypted);
+// Strip the leading nonce, unwrap the body, then decrypt.
+var recoveredSpan = Wrapper.UnwrapInPlace(OuterCipher.Aes128Ctr, outerKey, wire);
+var recovered = recoveredSpan.ToArray();
+
+var decrypted = dec.DecryptAuth(recovered);
 Console.WriteLine($"decrypted: {System.Text.Encoding.UTF8.GetString(decrypted)}");
 ```
 
@@ -503,6 +612,11 @@ constructor.
 
 ```csharp
 using Itb;
+using Itb.Wrapper;
+using OuterCipher = Itb.Wrapper.Cipher;
+
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 // mode: "triple" selects Triple Ouroboros. All other constructor
 // arguments behave identically to the Single (mode: "single") case
@@ -515,7 +629,17 @@ using var enc = new Encryptor(
 
 var plaintext = "Triple Ouroboros payload"u8.ToArray();
 var encrypted = enc.EncryptAuth(plaintext);
-var decrypted = enc.DecryptAuth(encrypted);
+
+// Format-deniability ITB masking through outer cipher AES-128-CTR with ~0% overhead over ITB Encrypt / Decrypt (Recommended in every case).
+var nonce = Wrapper.WrapInPlace(OuterCipher.Aes128Ctr, outerKey, encrypted);
+var wire = new byte[nonce.Length + encrypted.Length];
+Buffer.BlockCopy(nonce, 0, wire, 0, nonce.Length);
+Buffer.BlockCopy(encrypted, 0, wire, nonce.Length, encrypted.Length);
+
+// Receiver — strip the leading nonce, unwrap the body, then decrypt.
+var recoveredSpan = Wrapper.UnwrapInPlace(OuterCipher.Aes128Ctr, outerKey, wire);
+var recovered = recoveredSpan.ToArray();
+var decrypted = enc.DecryptAuth(recovered);
 ```
 
 The seven-seed split is internal to the encryptor; the on-wire
@@ -537,6 +661,9 @@ HSM) or when slotting into the existing Go `itb.Encrypt` /
 // Sender
 
 using Itb;
+using Itb.Wrapper;
+using ItbCipher = Itb.Cipher;
+using OuterCipher = Itb.Wrapper.Cipher;
 
 // Optional: global configuration (all process-wide, atomic)
 Library.MaxWorkers = 8;     // limit to 8 CPU cores (default: 0 = all CPUs)
@@ -577,13 +704,23 @@ ns.AttachLockSeed(ls);
 var macKey = new byte[32];
 using var mac = new Mac("hmac-blake3", macKey);
 
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
+
 var plaintext = "any text or binary data - including 0x00 bytes"u8.ToArray();
 
 // Authenticated encrypt — 32-byte tag is computed across the
 // entire decrypted capacity and embedded inside the RGBWYOPA
 // container, preserving oracle-free deniability.
-var encrypted = Cipher.EncryptAuth(ns, ds, ss, mac, plaintext);
+var encrypted = ItbCipher.EncryptAuth(ns, ds, ss, mac, plaintext);
 Console.WriteLine($"encrypted: {encrypted.Length} bytes");
+
+// Format-deniability ITB masking through outer cipher AES-128-CTR with ~0% overhead over ITB Encrypt / Decrypt (Recommended in every case).
+var nonce = Wrapper.WrapInPlace(OuterCipher.Aes128Ctr, outerKey, encrypted);
+var wire = new byte[nonce.Length + encrypted.Length];
+Buffer.BlockCopy(nonce, 0, wire, 0, nonce.Length);
+Buffer.BlockCopy(encrypted, 0, wire, nonce.Length, encrypted.Length);
+Console.WriteLine($"wire: {wire.Length} bytes");
 
 // Cross-process persistence: Blob512 packs every seed's hash key +
 // components, the optional dedicated lockSeed, and the MAC key +
@@ -608,8 +745,8 @@ var blobBytes = blob.Export(BlobExportOpts.LockSeed | BlobExportOpts.Mac);
 
 Library.MaxWorkers = 8;   // deployment knob — not serialised by Blob512
 
-// Receive encrypted payload + blobBytes
-// var encrypted = ...;
+// Receive wire + blobBytes
+// var wire = ...;
 // var blobBytes = ...;
 
 // Blob512.Import restores per-slot hash keys + components AND
@@ -640,9 +777,13 @@ var macName = restored.GetMacName();
 var macKeyRestored = restored.GetMacKey();
 using var macRestored = new Mac(macName, macKeyRestored);
 
+// Strip the leading nonce, unwrap the body, then decrypt.
+var recoveredSpan = Wrapper.UnwrapInPlace(OuterCipher.Aes128Ctr, outerKey, wire);
+var recovered = recoveredSpan.ToArray();
+
 // Authenticated decrypt — any single-bit tamper triggers MAC
 // failure (no oracle leak about which byte was tampered).
-var decrypted = Cipher.DecryptAuth(nsRestored, dsRestored, ssRestored, macRestored, encrypted);
+var decrypted = ItbCipher.DecryptAuth(nsRestored, dsRestored, ssRestored, macRestored, recovered);
 Console.WriteLine($"decrypted: {System.Text.Encoding.UTF8.GetString(decrypted)}");
 ```
 
@@ -650,7 +791,7 @@ Console.WriteLine($"decrypted: {System.Text.Encoding.UTF8.GetString(decrypted)}"
 
 `StreamEncryptor` / `StreamDecryptor` (and the seven-seed
 counterparts `StreamEncryptorTriple` / `StreamDecryptorTriple`)
-wrap the one-shot encrypt / decrypt API behind a `Write` /
+wrap the Single Message Encrypt / Decrypt API behind a `Write` /
 `Feed`-driven chunked I/O surface. ITB ciphertexts cap at
 ~64 MB plaintext per chunk; streaming larger payloads slices the
 input into chunks at the binding layer, encrypts each chunk
