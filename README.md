@@ -202,7 +202,7 @@ using (var fout = File.Create(INNER_PATH))
 {
     enc.EncryptStreamAuth(fin, fout, CHUNK_SIZE);
 }
-// Format-deniability ITB masking via outer-cipher streaming wrapper (AES-128-CTR) - same ~0% overhead in stream mode (Recommended in every case).
+// Format-deniability ITB masking via outer-cipher wrapper (AES-128-CTR) ~0% overhead (Recommended in every case).
 using (var ww = new WrapStreamWriter(OuterCipher.Aes128Ctr, outerKey))
 using (var fin = File.OpenRead(INNER_PATH))
 using (var fout = File.Create(ENC_PATH))
@@ -335,7 +335,7 @@ using (var fout = File.Create(INNER_PATH))
 {
     StreamPipeline.EncryptStreamAuth(noise, data, start, mac, fin, fout, CHUNK_SIZE);
 }
-// Format-deniability ITB masking via outer-cipher streaming wrapper (AES-128-CTR) - same ~0% overhead in stream mode (Recommended in every case).
+// Format-deniability ITB masking via outer-cipher wrapper (AES-128-CTR) ~0% overhead (Recommended in every case).
 using (var ww = new WrapStreamWriter(OuterCipher.Aes128Ctr, outerKey))
 using (var fin = File.OpenRead(INNER_PATH))
 using (var fout = File.Create(ENC_PATH))
@@ -485,7 +485,7 @@ var plaintext = "any text or binary data - including 0x00 bytes"u8.ToArray();
 var encrypted = enc.EncryptAuth(plaintext);
 Console.WriteLine($"encrypted: {encrypted.Length} bytes");
 
-// Format-deniability ITB masking through outer cipher AES-128-CTR with ~0% overhead over ITB Encrypt / Decrypt (Recommended in every case).
+// Format-deniability ITB masking via outer-cipher wrapper (AES-128-CTR) ~0% overhead (Recommended in every case).
 var nonce = Wrapper.WrapInPlace(OuterCipher.Aes128Ctr, outerKey, encrypted);
 var wire = new byte[nonce.Length + encrypted.Length];
 Buffer.BlockCopy(nonce, 0, wire, 0, nonce.Length);
@@ -615,7 +615,7 @@ var blob = enc.Export();
 var plaintext = "mixed-primitive Easy Mode payload"u8.ToArray();
 var encrypted = enc.EncryptAuth(plaintext);
 
-// Format-deniability ITB masking through outer cipher AES-128-CTR with ~0% overhead over ITB Encrypt / Decrypt (Recommended in every case).
+// Format-deniability ITB masking via outer-cipher wrapper (AES-128-CTR) ~0% overhead (Recommended in every case).
 var nonce = Wrapper.WrapInPlace(OuterCipher.Aes128Ctr, outerKey, encrypted);
 var wire = new byte[nonce.Length + encrypted.Length];
 Buffer.BlockCopy(nonce, 0, wire, 0, nonce.Length);
@@ -679,7 +679,7 @@ using var enc = new Encryptor(
 var plaintext = "Triple Ouroboros payload"u8.ToArray();
 var encrypted = enc.EncryptAuth(plaintext);
 
-// Format-deniability ITB masking through outer cipher AES-128-CTR with ~0% overhead over ITB Encrypt / Decrypt (Recommended in every case).
+// Format-deniability ITB masking via outer-cipher wrapper (AES-128-CTR) ~0% overhead (Recommended in every case).
 var nonce = Wrapper.WrapInPlace(OuterCipher.Aes128Ctr, outerKey, encrypted);
 var wire = new byte[nonce.Length + encrypted.Length];
 Buffer.BlockCopy(nonce, 0, wire, 0, nonce.Length);
@@ -764,7 +764,7 @@ var plaintext = "any text or binary data - including 0x00 bytes"u8.ToArray();
 var encrypted = ItbCipher.EncryptAuth(ns, ds, ss, mac, plaintext);
 Console.WriteLine($"encrypted: {encrypted.Length} bytes");
 
-// Format-deniability ITB masking through outer cipher AES-128-CTR with ~0% overhead over ITB Encrypt / Decrypt (Recommended in every case).
+// Format-deniability ITB masking via outer-cipher wrapper (AES-128-CTR) ~0% overhead (Recommended in every case).
 var nonce = Wrapper.WrapInPlace(OuterCipher.Aes128Ctr, outerKey, encrypted);
 var wire = new byte[nonce.Length + encrypted.Length];
 Buffer.BlockCopy(nonce, 0, wire, 0, nonce.Length);
