@@ -64,7 +64,29 @@ Project metadata: `AssemblyName = "Itb"`, `Version = 0.1.0`,
 dependency is the .NET base library only — no NuGet package is
 introduced (`[LibraryImport]` and `NativeLibrary` are built-ins).
 
-## Run the integration test suite
+## Library lookup order
+
+1. `ITB_LIBRARY_PATH` environment variable (absolute path).
+2. `<repo>/dist/<os>-<arch>/libitb.<ext>` resolved by walking up
+   from the assembly directory (`bindings/csharp/Itb/bin/<config>/<tfm>/`)
+   until a matching `dist/` folder is found.
+3. System loader path (`ld.so.cache`, `DYLD_LIBRARY_PATH`, `PATH`).
+
+## Memory
+
+Two process-wide knobs constrain Go runtime arena pacing. Both readable at libitb load time via env vars:
+
+- `ITB_GOMEMLIMIT=512MiB` — soft memory limit in bytes; supports `B` / `KiB` / `MiB` / `GiB` / `TiB` suffixes.
+- `ITB_GOGC=20` — GC trigger percentage; default `100`, lower triggers GC more aggressively.
+
+Programmatic setters override env-set values at any time. Pass `-1` to either setter to query the current value without changing it.
+
+```csharp
+Itb.Library.SetMemoryLimit(512L << 20);
+Itb.Library.SetGcPercent(20);
+```
+
+## Tests
 
 ```bash
 ./bindings/csharp/run_tests.sh
@@ -79,13 +101,40 @@ mirrors the cross-binding coverage: Single + Triple Ouroboros,
 mixed primitives, authenticated paths, blob round-trip, streaming
 chunked I/O, error paths, lockSeed lifecycle.
 
-## Library lookup order
+## Benchmarks
 
-1. `ITB_LIBRARY_PATH` environment variable (absolute path).
-2. `<repo>/dist/<os>-<arch>/libitb.<ext>` resolved by walking up
-   from the assembly directory (`bindings/csharp/Itb/bin/<config>/<tfm>/`)
-   until a matching `dist/` folder is found.
-3. System loader path (`ld.so.cache`, `DYLD_LIBRARY_PATH`, `PATH`).
+A custom Go-bench-style harness lives under `Itb.Bench/` and
+covers the four ops (`encrypt`, `decrypt`, `encrypt_auth`,
+`decrypt_auth`) across the nine PRF-grade primitives plus one
+mixed-primitive variant for both Single and Triple Ouroboros at
+1024-bit ITB key width and 16 MiB payload. Run via:
+
+```bash
+dotnet run --project Itb.Bench -c Release -- single
+dotnet run --project Itb.Bench -c Release -- triple
+```
+
+Environment variables: `ITB_NONCE_BITS` (default 128),
+`ITB_LOCKSEED` (default off), `ITB_BENCH_FILTER` (case-insensitive
+substring), `ITB_BENCH_MIN_SEC` (default 5).
+
+See [`Itb.Bench/BENCH.md`](Itb.Bench/BENCH.md) for recorded
+throughput results across the canonical pass matrix.
+
+The four-pass canonical sweep (Single + Triple × ±LockSeed) that
+fills `Itb.Bench/BENCH.md` is driven by the wrapper script in the
+binding root:
+
+```bash
+./bindings/csharp/run_bench.sh                  # full 4-pass canonical sweep
+./bindings/csharp/run_bench.sh --lockseed-only  # pass 3 + pass 4 only
+```
+
+The harness sets `LD_LIBRARY_PATH` to `dist/linux-amd64/`,
+manages `ITB_LOCKSEED` per pass, and forwards `ITB_NONCE_BITS` /
+`ITB_BENCH_FILTER` / `ITB_BENCH_MIN_SEC` straight through to the
+underlying `dotnet run -c Release --project Itb.Bench -- single` /
+`-- triple` invocations.
 
 ## Streaming AEAD
 
@@ -141,7 +190,7 @@ if (!File.Exists(SRC_PATH) || new FileInfo(SRC_PATH).Length != 64L * 1024 * 1024
     File.WriteAllBytes(SRC_PATH, buf);
 }
 
-// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 using var enc = new Encryptor("areion512", 1024, "hmac-blake3", "single");
@@ -277,7 +326,7 @@ using var start = new Seed("areion512", 1024);
 var macKey = RandomNumberGenerator.GetBytes(32);
 using var mac = new Mac("hmac-blake3", macKey);
 
-// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 // Sender — encrypt to an intermediate file, then wrap end-to-end.
@@ -389,7 +438,7 @@ using Itb;
 using Itb.Wrapper;
 using OuterCipher = Itb.Wrapper.Cipher;
 
-// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 // Per-instance configuration — mutates only this encryptor's
@@ -525,7 +574,7 @@ using Itb;
 using Itb.Wrapper;
 using OuterCipher = Itb.Wrapper.Cipher;
 
-// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 // Per-slot primitive selection (Single Ouroboros, 3 + 1 slots).
@@ -615,7 +664,7 @@ using Itb;
 using Itb.Wrapper;
 using OuterCipher = Itb.Wrapper.Cipher;
 
-// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 // mode: "triple" selects Triple Ouroboros. All other constructor
@@ -704,7 +753,7 @@ ns.AttachLockSeed(ls);
 var macKey = new byte[32];
 using var mac = new Mac("hmac-blake3", macKey);
 
-// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB inner PRF + seeds keep CSPRNG-fresh randomness per call.
+// Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
 
 var plaintext = "any text or binary data - including 0x00 bytes"u8.ToArray();
@@ -938,6 +987,18 @@ All seeds passed to one `Cipher.Encrypt` / `Cipher.Decrypt` call
 must share the same native hash width. Mixing widths raises
 `ItbException` with status `SeedWidthMix`.
 
+## MAC primitives
+
+Names match the libitb MAC registry; ordering matches that registry's declaration order.
+
+| MAC | Key bytes | Tag bytes | Underlying primitive |
+|---|---|---|---|
+| `kmac256` | 32 | 32 | KMAC256 (Keccak-derived) |
+| `hmac-sha256` | 32 | 32 | HMAC over SHA-256 |
+| `hmac-blake3` | 32 | 32 | HMAC over BLAKE3 |
+
+`kmac256` and `hmac-sha256` accept keys 16 bytes and longer; the binding fleet's tests and examples use 32 bytes uniformly across primitives for cross-binding consistency. `hmac-blake3` requires exactly 32 bytes by construction.
+
 ## Process-wide configuration
 
 Every setter takes effect for all subsequent encrypt / decrypt
@@ -1086,37 +1147,134 @@ every cipher entry point. Pass at least one byte.
 | 24 | `StatusCode.StreamAfterFinal` | Streaming AEAD transcript carries chunk bytes after the terminator; raised as `ItbStreamAfterFinalException` |
 | 99 | `StatusCode.Internal` | Generic "internal" sentinel for paths the caller cannot recover from at the binding layer |
 
-## Benchmarks
+## Constraints
 
-A custom Go-bench-style harness lives under `Itb.Bench/` and
-covers the four ops (`encrypt`, `decrypt`, `encrypt_auth`,
-`decrypt_auth`) across the nine PRF-grade primitives plus one
-mixed-primitive variant for both Single and Triple Ouroboros at
-1024-bit ITB key width and 16 MiB payload. Run via:
+- **.NET 10 minimum.** Every project file under `bindings/csharp/`
+  declares `<TargetFramework>net10.0</TargetFramework>`. Earlier
+  runtimes lack the `Span<T>` / `Memory<T>` / `LibraryImport`
+  generator ergonomics the wrapper layer depends on.
+- **C# `latest` with nullable reference types.** Every project file
+  declares `<LangVersion>latest</LangVersion>` and
+  `<Nullable>enable</Nullable>`; consumers compile against the
+  nullable-annotated public surface.
+- **Single assembly.** All consumer-visible declarations live in the
+  `Itb` namespace inside `Itb.dll`; the FFI substrate (`Itb.Sys`
+  internal class) is kept separate so audits can read it
+  independently.
+- **libitb.so required at runtime.** The assembly loads
+  `dist/<os>-<arch>/libitb.<ext>` via `NativeLibrary.Load`; the
+  shared library must be built first and reachable through the
+  loader's search path.
+- **No external runtime deps beyond the .NET BCL + libitb.so.** The
+  package depends only on the .NET 10 base class library; the test
+  runner additionally requires `Microsoft.NET.Test.Sdk` + `xunit`.
+- **Frozen C ABI.** The `ITB_*` exports declared inside
+  `Itb.Sys.NativeMethods` (synced from `dist/<os>-<arch>/libitb.h`)
+  are the contract; the binding does not extend or reshape them.
 
-```bash
-dotnet run --project Itb.Bench -c Release -- single
-dotnet run --project Itb.Bench -c Release -- triple
-```
+## API Overview
 
-Environment variables: `ITB_NONCE_BITS` (default 128),
-`ITB_LOCKSEED` (default off), `ITB_BENCH_FILTER` (case-insensitive
-substring), `ITB_BENCH_MIN_SEC` (default 5).
+Every public symbol lives in the `Itb` namespace. The wrapper
+(format-deniability outer cipher) surface is split into the
+`Itb.Wrapper` namespace.
 
-See [`Itb.Bench/BENCH.md`](Itb.Bench/BENCH.md) for recorded
-throughput results across the canonical pass matrix.
+### Library metadata (`Itb.Library`)
 
-The four-pass canonical sweep (Single + Triple × ±LockSeed) that
-fills `Itb.Bench/BENCH.md` is driven by the wrapper script in the
-binding root:
+| Symbol | Purpose |
+|---|---|
+| `Library.Version` | Library version `"<major>.<minor>.<patch>"` |
+| `Library.MaxKeyBits` | Max supported ITB key width in bits |
+| `Library.Channels` | Number of native channel slots |
+| `Library.HeaderSize` | Current chunk header size in bytes |
+| `Library.ParseChunkLen(ReadOnlySpan<byte> header) -> int` | Parse chunk header, return total on-wire chunk length |
+| `Library.ListHashes() -> IReadOnlyList<HashInfo>` / `Library.ListMacs() -> IReadOnlyList<MacInfo>` | Catalogue accessors |
+| `Library.LastError` / `Library.LastMismatchField` | Per-thread last-error message / Easy mismatch field name |
 
-```bash
-./bindings/csharp/run_bench.sh                  # full 4-pass canonical sweep
-./bindings/csharp/run_bench.sh --lockseed-only  # pass 3 + pass 4 only
-```
+### Process-wide configuration (`Itb.Library`)
 
-The harness sets `LD_LIBRARY_PATH` to `dist/linux-amd64/`,
-manages `ITB_LOCKSEED` per pass, and forwards `ITB_NONCE_BITS` /
-`ITB_BENCH_FILTER` / `ITB_BENCH_MIN_SEC` straight through to the
-underlying `dotnet run -c Release --project Itb.Bench -- single` /
-`-- triple` invocations.
+| Symbol | Purpose |
+|---|---|
+| `Library.BitSoup { get; set; }` | Bit Soup mode toggle |
+| `Library.LockSoup { get; set; }` | Lock Soup mode toggle |
+| `Library.MaxWorkers { get; set; }` | Worker pool cap |
+| `Library.NonceBits { get; set; }` | Nonce width (128 / 256 / 512) |
+| `Library.BarrierFill { get; set; }` | Barrier-fill factor |
+| `long Library.SetMemoryLimit(long limit)` | Go runtime heap soft limit in bytes; pass negative to query only |
+| `int Library.SetGcPercent(int pct)` | Go GC trigger percentage; pass negative to query only |
+
+### Seeds and MAC
+
+| Symbol | Purpose |
+|---|---|
+| `new Seed(string hashName, int keyBits)` | CSPRNG-fresh seed |
+| `Seed.FromComponents(hashName, keyBits, components)` | Reconstruct from explicit components |
+| `seed.Width / HashName / HashNameIntrospect() / GetHashKey() / GetComponents() / AttachLockSeed(lock)` | Introspection + lock-seed attachment |
+| `new Mac(string macName, ReadOnlySpan<byte> key)` | Construct MAC handle |
+
+### Low-level cipher (`Itb.Cipher`)
+
+| Symbol | Purpose |
+|---|---|
+| `Cipher.Encrypt(noise, data, start, pt) -> byte[]` / `Cipher.Decrypt(...)` | Single Message |
+| `Cipher.EncryptAuth(noise, data, start, mac, pt)` / `Cipher.DecryptAuth(...)` | MAC-authenticated counterparts |
+| `Cipher.EncryptTriple(noise, d1, d2, d3, s1, s2, s3, pt)` / `Cipher.DecryptTriple(...)` | Triple Ouroboros |
+| `Cipher.EncryptAuthTriple(...)` / `Cipher.DecryptAuthTriple(...)` | Triple Ouroboros MAC-authenticated |
+
+### Easy Mode encryptor (`Itb.Encryptor`)
+
+| Symbol | Purpose |
+|---|---|
+| `new Encryptor(primitive, keyBits, mac=null, mode="single")` | Single-primitive constructor |
+| `Encryptor.Mixed(primitives, keyBits, mac=null)` / `Encryptor.Mixed3(primitives, keyBits, mac=null)` | Mixed-primitive Single / Triple |
+| `enc.Encrypt(pt) / Decrypt(ct) / EncryptAuth(pt) / DecryptAuth(ct)` | Cipher entry points |
+| `enc.SetNonceBits / SetBarrierFill / SetBitSoup / SetLockSoup / SetLockSeed / SetChunkSize` | Per-instance setters |
+| `enc.Primitive / KeyBits / Mode / MacName / SeedCount / NonceBits / HeaderSize / IsMixed / HasPRFKeys / PrimitiveAt(slot)` | Accessors |
+| `enc.PRFKey(slot) / MacKey() / SeedComponents(slot) / ParseChunkLen(header)` | Key-material + per-instance chunk-length parser |
+| `enc.Export() / Import(blob)` | State-blob persistence |
+| `Encryptor.PeekConfig(blob) -> EncryptorConfig` | Pre-import discriminator |
+| `enc.EncryptStreamAuth(...) / DecryptStreamAuth(...)` | Easy Mode Streaming AEAD over `System.IO.Stream` |
+| `enc.Close()` / `enc.Dispose()` | Close + release |
+
+### Streaming AEAD (`Itb.Streams`)
+
+| Symbol | Purpose |
+|---|---|
+| `new StreamEncryptor(noise, data, start, output, opts?)` / `new StreamDecryptor(noise, data, start, output)` | Push-style Low-Level Single |
+| `new StreamEncryptorTriple(noise, d1, d2, d3, s1, s2, s3, output, opts?)` / `new StreamDecryptorTriple(...)` | Push-style Low-Level Triple |
+| `StreamPipeline.EncryptStream / DecryptStream / EncryptStreamTriple / DecryptStreamTriple` | Free-function bridges (Low-Level No MAC) |
+| `StreamPipeline.EncryptStreamAuth / DecryptStreamAuth / EncryptStreamAuthTriple / DecryptStreamAuthTriple` | Free-function bridges (Streaming AEAD) |
+| `StreamDefaults.DefaultChunkSize` | Default streaming chunk size in bytes |
+
+### Native Blob
+
+| Symbol | Purpose |
+|---|---|
+| `new Blob128() / new Blob256() / new Blob512()` | Width-specific Native Blob handles |
+| `blob.Width / Mode` | Width + mode accessors |
+| `blob.SetKey / SetComponents / SetMacKey / SetMacName(...)` | Field setters |
+| `blob.GetKey / GetComponents / GetMacKey / GetMacName(...)` | Field getters |
+| `blob.Export(opts) / ExportTriple(opts) / Import(payload) / ImportTriple(payload)` | Serialisation |
+| `BlobSlot.N / D / S / L / D1 / D2 / D3 / S1 / S2 / S3` | Slot enum |
+| `BlobExportOpts.None / LockSeed / Mac` | Export opt-in flag bits |
+
+### Wrapper (`Itb.Wrapper`)
+
+| Symbol | Purpose |
+|---|---|
+| `Cipher.Aes128Ctr / ChaCha20 / SipHash24` | Cipher enum |
+| `Wrapper.AllCiphers` | Canonical cipher list |
+| `Wrapper.KeySize(cipher) / NonceSize(cipher)` | Cipher dimension accessors |
+| `Wrapper.GenerateKey(cipher) -> byte[]` | CSPRNG-fresh wrapper key |
+| `Wrapper.Wrap(cipher, key, blob) -> byte[]` / `Wrapper.Unwrap(cipher, key, wire) -> byte[]` | Single Message Wrap / Unwrap |
+| `Wrapper.WrapInPlace(cipher, key, buf) -> byte[]` / `Wrapper.UnwrapInPlace(cipher, key, wire) -> Span<byte>` | In-place Wrap / Unwrap |
+| `new WrapStreamWriter(cipher, key)` / `new UnwrapStreamReader(cipher, key, wireNonce)` | Streaming wrap writer / unwrap reader |
+| `InvalidCipherException / InvalidKeyException / InvalidNonceException / WrapperHandleClosedException` | Typed exceptions |
+
+### Error model
+
+| Symbol | Purpose |
+|---|---|
+| `ItbException` | Base exception class; `.Code` carries the numeric status |
+| `ItbEasyMismatchException / ItbBlobModeMismatchException / ItbBlobMalformedException / ItbBlobVersionTooNewException` | Typed subclasses for cold-path discriminators |
+| `ItbStreamTruncatedException / ItbStreamAfterFinalException` | Streaming AEAD transcript-shape exceptions |
+| `StatusCode` (enum) | Status-code surface |

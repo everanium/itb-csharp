@@ -260,6 +260,12 @@ internal static unsafe partial class ItbNative
     [LibraryImport("libitb")]
     internal static partial int ITB_GetBarrierFill();
 
+    [LibraryImport("libitb")]
+    internal static partial long ITB_SetMemoryLimit(long limit);
+
+    [LibraryImport("libitb")]
+    internal static partial int ITB_SetGCPercent(int pct);
+
     // ----------------------------------------------------------------
     // Stream support — chunk-length parsing + width / channel queries
     // ----------------------------------------------------------------
