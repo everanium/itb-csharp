@@ -1,6 +1,6 @@
 // C# eitb — runs every wrapper × ITB example end-to-end.
 //
-// Mirrors cmd/eitb/main.go adapted to the C# binding asymmetry: the
+// Mirrors tools/eitb/main.go adapted to the C# binding asymmetry: the
 // binding has no Stream / IBufferWriter<byte> analogue for Non-AEAD
 // streaming wrap surfaces (Streaming AEAD does have file-like helpers
 // via Encryptor.EncryptStreamAuth / Cipher.EncryptStreamAuth, but the
