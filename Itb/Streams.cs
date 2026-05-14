@@ -913,11 +913,11 @@ public sealed class StreamEncryptorAuth : IDisposable
     private bool _closed;
     private bool _prefixEmitted;
     // Per-stream output buffer cache for the per-chunk dispatcher
-    // (Bonus 1b in .NEXTBIND.md §7.1) — mirrors the per-encryptor
-    // _outputBuffer field on Encryptor but lives on the streaming
-    // class instance. Grown on demand by StreamAuthCipher.EmitSingle
-    // with the same wipe-on-grow + 1.25× + 128 KiB envelope shape as
-    // Encryptor.CipherCall; reused across every chunk's invocation.
+    // mirrors the per-encryptor _outputBuffer field on Encryptor
+    // but lives on the streaming class instance. Grown on demand by
+    // StreamAuthCipher.EmitSingle with the same wipe-on-grow + 1.25×
+    // + 128 KiB envelope shape as Encryptor.CipherCall;
+    // reused across every chunk's invocation.
     private byte[] _outBuf = Array.Empty<byte>();
 
     /// <summary>
@@ -1112,11 +1112,11 @@ public sealed class StreamDecryptorAuth : IDisposable
     private bool _seenFinal;
     private bool _closed;
     // Per-stream output buffer cache for the per-chunk dispatcher
-    // (Bonus 1b in .NEXTBIND.md §7.1) — mirrors the per-encryptor
-    // _outputBuffer field on Encryptor but lives on the streaming
-    // class instance. Grown on demand by StreamAuthCipher.ConsumeSingle
-    // with the same wipe-on-grow + 1.25× + 128 KiB envelope shape as
-    // Encryptor.CipherCall; reused across every chunk's invocation.
+    // mirrors the per-encryptor _outputBuffer field on Encryptor
+    // but lives on the streaming class instance. Grown on demand by
+    // StreamAuthCipher.EmitSingle with the same wipe-on-grow + 1.25×
+    // + 128 KiB envelope shape as Encryptor.CipherCall;
+    // reused across every chunk's invocation.
     private byte[] _outBuf = Array.Empty<byte>();
 
     /// <summary>
@@ -1377,11 +1377,11 @@ public sealed class StreamEncryptorAuthTriple : IDisposable
     private bool _closed;
     private bool _prefixEmitted;
     // Per-stream output buffer cache for the per-chunk dispatcher
-    // (Bonus 1b in .NEXTBIND.md §7.1) — mirrors the per-encryptor
-    // _outputBuffer field on Encryptor but lives on the streaming
-    // class instance. Grown on demand by StreamAuthCipher.EmitTriple
-    // with the same wipe-on-grow + 1.25× + 128 KiB envelope shape as
-    // Encryptor.CipherCall; reused across every chunk's invocation.
+    // mirrors the per-encryptor _outputBuffer field on Encryptor
+    // but lives on the streaming class instance. Grown on demand by
+    // StreamAuthCipher.EmitSingle with the same wipe-on-grow + 1.25×
+    // + 128 KiB envelope shape as Encryptor.CipherCall;
+    // reused across every chunk's invocation.
     private byte[] _outBuf = Array.Empty<byte>();
 
     /// <summary>Constructs a fresh Triple Ouroboros authenticated
@@ -1561,11 +1561,11 @@ public sealed class StreamDecryptorAuthTriple : IDisposable
     private bool _seenFinal;
     private bool _closed;
     // Per-stream output buffer cache for the per-chunk dispatcher
-    // (Bonus 1b in .NEXTBIND.md §7.1) — mirrors the per-encryptor
-    // _outputBuffer field on Encryptor but lives on the streaming
-    // class instance. Grown on demand by StreamAuthCipher.ConsumeTriple
-    // with the same wipe-on-grow + 1.25× + 128 KiB envelope shape as
-    // Encryptor.CipherCall; reused across every chunk's invocation.
+    // mirrors the per-encryptor _outputBuffer field on Encryptor
+    // but lives on the streaming class instance. Grown on demand by
+    // StreamAuthCipher.EmitSingle with the same wipe-on-grow + 1.25×
+    // + 128 KiB envelope shape as Encryptor.CipherCall;
+    // reused across every chunk's invocation.
     private byte[] _outBuf = Array.Empty<byte>();
 
     /// <summary>Constructs a fresh Triple Ouroboros authenticated
@@ -2155,8 +2155,7 @@ internal static unsafe class StreamAuthCipher
 /// capacity.
 ///
 /// The <c>cache</c> parameter is a <c>ref</c> handle to the caller's
-/// reusable output buffer (typically <c>Encryptor._outputBuffer</c> —
-/// Bonus 1 in .NEXTBIND.md §7.1). The helper grows it on demand with
+/// reusable output buffer. The helper grows it on demand with
 /// the same wipe-on-grow + 1.25× + 128 KiB envelope shape as
 /// <c>Encryptor.CipherCall</c>; the returned tuple references the
 /// cache directly. The next chunk's call may reuse the same cache —

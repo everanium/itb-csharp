@@ -949,10 +949,9 @@ public sealed class Encryptor : IDisposable
                 if (eof && filled == 0)
                 {
                     // Empty stream — emit a single 0-byte terminating chunk.
-                    // Routes through the per-encryptor _outputBuffer cache
-                    // (Bonus 1 in .NEXTBIND.md §7.1) so the streaming
-                    // hot loop amortises allocation across every chunk
-                    // just like Encryptor.CipherCall does.
+                    // Routes through the per-encryptor _outputBuffer cache.
+                    // So the streaming hot loop amortises allocation across
+                    // every chunk just like Encryptor.CipherCall does.
                     var (ctBuf0, ctLen0) = StreamAuthEasy.Emit(_handle,
                         staging, 0, streamId, cumPixels, true,
                         ref _outputBuffer);
@@ -962,9 +961,9 @@ public sealed class Encryptor : IDisposable
                 // Peek 1 byte to determine whether this is the final chunk.
                 var probe = input.ReadByte();
                 var isFinal = probe < 0;
-                // Routes through the per-encryptor _outputBuffer cache
-                // (Bonus 1 in .NEXTBIND.md §7.1) — same scope as the
-                // Single Message CipherCall path, reused across every chunk.
+                // Routes through the per-encryptor _outputBuffer cache.
+                // same scope as the Single Message CipherCall path,
+                // reused across every chunk.
                 var (ctBuf, ctLen) = StreamAuthEasy.Emit(_handle,
                     staging, filled, streamId, cumPixels, isFinal,
                     ref _outputBuffer);
@@ -1057,9 +1056,8 @@ public sealed class Encryptor : IDisposable
                         var chunk = new byte[cl];
                         Buffer.BlockCopy(accum, accumStart, chunk, 0, cl);
                         accumStart += cl;
-                        // Routes through the per-encryptor _outputBuffer
-                        // cache (Bonus 1 in .NEXTBIND.md §7.1) — same
-                        // scope as the Single Message CipherCall path,
+                        // Routes through the per-encryptor _outputBuffer cache.
+                        // So the same scope as the Single Message CipherCall path,
                         // reused across every chunk.
                         var (ptBuf, ptLen, ff) = StreamAuthEasy.Consume(
                             _handle, chunk, chunk.Length, streamId, cumPixels,
@@ -1179,10 +1177,9 @@ public sealed class Encryptor : IDisposable
                         accumStart = 0;
                         accumEnd = live;
                     }
-                    // Routes through the per-encryptor _outputBuffer
-                    // cache (Bonus 1 in .NEXTBIND.md §7.1) — same scope
-                    // as the Single Message CipherCall path, reused across
-                    // every chunk.
+                    // Routes through the per-encryptor _outputBuffer cache.
+                    // So the same scope as the Single Message CipherCall path,
+                    // reused across every chunk.
                     var (ptBuf, ptLen, ff) = StreamAuthEasy.Consume(
                         _handle, chunk, chunk.Length, streamId, cumPixels,
                         ref _outputBuffer);
