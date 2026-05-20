@@ -58,7 +58,7 @@ cd bindings/csharp
 dotnet build -c Release
 ```
 
-Project metadata: `AssemblyName = "Itb"`, `Version = 0.1.0`,
+Project metadata: `AssemblyName = "Itb"`, `Version = 0.1.1`,
 `TargetFramework = net10.0`, `LangVersion = latest`,
 `AllowUnsafeBlocks = true`, `License = MIT`. The runtime
 dependency is the .NET base library only — no NuGet package is

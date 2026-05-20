@@ -14,7 +14,7 @@
 
   <PropertyGroup Label="Package metadata">
     <PackageId>Itb</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>everanium</Authors>
     <Description>C# / .NET binding for ITB (information-theoretic barrier) cipher via the libitb shared library.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
