@@ -1,5 +1,11 @@
 # ITB C# / .NET Binding
 
+> **Security notice.** ITB is an experimental symmetric cipher construction without prior peer review, independent cryptanalysis, or formal certification. The construction's security properties have **not been verified** by independent cryptographers or mathematicians.
+>
+> PRF-grade hash functions are **required**. No warranty is provided.
+
+**No bespoke cryptography.** ITB introduces no cryptographic primitive of its own — no custom S-box, permutation, or round function. It is a construction over existing primitives, much as PGP composes standard ciphers rather than defining one. Such constructions are not the object of algorithm-level cryptographic certification: national regimes (NIST CAVP/FIPS in the US, GOST/FSB in Russia, KCMVP in South Korea, OSCCA's SM-series in China, SOG-IS/EUCC and national lists in the EU, ASD's ISM in Australia) certify **primitives** and the **modules** built on them, not compositional schemes. Eligibility for regulated use is therefore inherited from the primitives ITB is configured with, not conferred by ITB itself.
+
 Source-generated `[LibraryImport]` wrapper over the libitb shared
 library (`cmd/cshared`). Runtime FFI — no C compiler at install
 time, no compile-time link against libitb; the `.so` / `.dll` /
@@ -58,7 +64,7 @@ cd bindings/csharp
 dotnet build -c Release
 ```
 
-Project metadata: `AssemblyName = "Itb"`, `Version = 0.1.1`,
+Project metadata: `AssemblyName = "Itb"`, `Version = 0.1.2`,
 `TargetFramework = net10.0`, `LangVersion = latest`,
 `AllowUnsafeBlocks = true`, `License = MIT`. The runtime
 dependency is the .NET base library only — no NuGet package is

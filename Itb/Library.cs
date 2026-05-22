@@ -29,7 +29,7 @@ public readonly record struct MacInfo(string Name, int KeySize, int TagSize, int
 /// </summary>
 public static class Library
 {
-    /// <summary>libitb version string (e.g. "0.1.1").</summary>
+    /// <summary>libitb version string (e.g. "0.1.2").</summary>
     public static unsafe string Version =>
         ReadString.Read(ItbNative.ITB_Version);
 
