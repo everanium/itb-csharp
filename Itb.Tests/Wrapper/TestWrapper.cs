@@ -78,6 +78,30 @@ public class TestWrapperConstants
             new[] { OuterCipher.Aes128Ctr, OuterCipher.ChaCha20, OuterCipher.SipHash24 },
             WrapperCore.AllCiphers);
     }
+
+    [Theory]
+    [MemberData(nameof(KeyCiphers))]
+    public void DeriveKeyDeterministicAndRoundTrips(OuterCipher cipher, int keySize)
+    {
+        // 32 random bytes as the master secret (stand-in for an ML-KEM
+        // shared secret; the binding ships no KEM).
+        var master = new byte[32];
+        RandomNumberGenerator.Fill(master);
+
+        var k1 = WrapperCore.DeriveKey(cipher, master);
+        Assert.Equal(keySize, k1.Length);
+
+        // Determinism: same (cipher, master) yields the same key.
+        var k2 = WrapperCore.DeriveKey(cipher, master);
+        Assert.Equal(k1, k2);
+
+        // The derived key round-trips through Wrap / Unwrap.
+        var blob = new byte[1024];
+        RandomNumberGenerator.Fill(blob);
+        var wire = WrapperCore.Wrap(cipher, k1, blob);
+        var recovered = WrapperCore.Unwrap(cipher, k1, wire);
+        Assert.Equal(blob, recovered);
+    }
 }
 
 public class TestWrapUnwrap

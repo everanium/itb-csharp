@@ -649,8 +649,8 @@ internal static unsafe partial class ItbNative
     // ciphertext blob or bytestream. Mirrors the 12 ITB_Wrap* /
     // ITB_Unwrap* / ITB_WrapStream* / ITB_UnwrapStream* /
     // ITB_WrapperKeySize / ITB_WrapperNonceSize exports in
-    // cmd/cshared/main.go. cipherName accepts "aes" / "chacha" /
-    // "siphash"; every other entry follows the standard
+    // cmd/cshared/main.go. cipherName accepts "aescmac" / "chacha20" /
+    // "siphash24"; every other entry follows the standard
     // probe-allocate-call idiom. The streaming Init / Update / Free
     // triple owns one wrap-stream handle (uintptr_t on the C side,
     // nuint here); pair every Init with exactly one Free.
@@ -661,6 +661,12 @@ internal static unsafe partial class ItbNative
 
     [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial int ITB_WrapperNonceSize(string cipherName, out nuint outSize);
+
+    [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_WrapperDeriveKey(
+        string cipherName,
+        byte* master, nuint masterLen,
+        byte* @out, nuint outCap, out nuint outLen);
 
     [LibraryImport("libitb", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial int ITB_Wrap(
