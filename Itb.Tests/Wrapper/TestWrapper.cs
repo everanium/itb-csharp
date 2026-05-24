@@ -32,17 +32,29 @@ public class TestWrapperConstants
     public static IEnumerable<object[]> KeyCiphers() =>
         new[]
         {
-            new object[] { OuterCipher.Aes128Ctr, 16 },
-            new object[] { OuterCipher.ChaCha20, 32 },
+            new object[] { OuterCipher.Areion256, 32 },
+            new object[] { OuterCipher.Areion512, 64 },
             new object[] { OuterCipher.SipHash24, 16 },
+            new object[] { OuterCipher.Aes128Ctr, 16 },
+            new object[] { OuterCipher.Blake2b256, 32 },
+            new object[] { OuterCipher.Blake2b512, 32 },
+            new object[] { OuterCipher.Blake2s, 32 },
+            new object[] { OuterCipher.Blake3, 32 },
+            new object[] { OuterCipher.ChaCha20, 32 },
         };
 
     public static IEnumerable<object[]> NonceCiphers() =>
         new[]
         {
-            new object[] { OuterCipher.Aes128Ctr, 16 },
-            new object[] { OuterCipher.ChaCha20, 12 },
+            new object[] { OuterCipher.Areion256, 16 },
+            new object[] { OuterCipher.Areion512, 16 },
             new object[] { OuterCipher.SipHash24, 16 },
+            new object[] { OuterCipher.Aes128Ctr, 16 },
+            new object[] { OuterCipher.Blake2b256, 16 },
+            new object[] { OuterCipher.Blake2b512, 16 },
+            new object[] { OuterCipher.Blake2s, 16 },
+            new object[] { OuterCipher.Blake3, 16 },
+            new object[] { OuterCipher.ChaCha20, 12 },
         };
 
     [Theory]
@@ -75,7 +87,18 @@ public class TestWrapperConstants
     public void AllCiphersOrderingIsCanonical()
     {
         Assert.Equal(
-            new[] { OuterCipher.Aes128Ctr, OuterCipher.ChaCha20, OuterCipher.SipHash24 },
+            new[]
+            {
+                OuterCipher.Areion256,
+                OuterCipher.Areion512,
+                OuterCipher.SipHash24,
+                OuterCipher.Aes128Ctr,
+                OuterCipher.Blake2b256,
+                OuterCipher.Blake2b512,
+                OuterCipher.Blake2s,
+                OuterCipher.Blake3,
+                OuterCipher.ChaCha20,
+            },
             WrapperCore.AllCiphers);
     }
 
@@ -84,7 +107,10 @@ public class TestWrapperConstants
     public void DeriveKeyDeterministicAndRoundTrips(OuterCipher cipher, int keySize)
     {
         // 32 random bytes as the master secret (stand-in for an ML-KEM
-        // shared secret; the binding ships no KEM).
+        // shared secret; the binding ships no KEM). A 32-byte master
+        // satisfies the wrapper's uniform security floor, so DeriveKey
+        // accepts it for every outer cipher (the kdf layer truncates /
+        // stretches to each cipher's key size).
         var master = new byte[32];
         RandomNumberGenerator.Fill(master);
 
@@ -107,12 +133,7 @@ public class TestWrapperConstants
 public class TestWrapUnwrap
 {
     public static IEnumerable<object[]> Ciphers() =>
-        new[]
-        {
-            new object[] { OuterCipher.Aes128Ctr },
-            new object[] { OuterCipher.ChaCha20 },
-            new object[] { OuterCipher.SipHash24 },
-        };
+        WrapperCore.AllCiphers.Select(c => new object[] { c });
 
     [Theory]
     [MemberData(nameof(Ciphers))]
@@ -171,12 +192,7 @@ public class TestWrapUnwrap
 public class TestWrapUnwrapInPlace
 {
     public static IEnumerable<object[]> Ciphers() =>
-        new[]
-        {
-            new object[] { OuterCipher.Aes128Ctr },
-            new object[] { OuterCipher.ChaCha20 },
-            new object[] { OuterCipher.SipHash24 },
-        };
+        WrapperCore.AllCiphers.Select(c => new object[] { c });
 
     [Theory]
     [MemberData(nameof(Ciphers))]
@@ -244,12 +260,7 @@ public class TestWrapUnwrapInPlace
 public class TestWrapperStreaming
 {
     public static IEnumerable<object[]> Ciphers() =>
-        new[]
-        {
-            new object[] { OuterCipher.Aes128Ctr },
-            new object[] { OuterCipher.ChaCha20 },
-            new object[] { OuterCipher.SipHash24 },
-        };
+        WrapperCore.AllCiphers.Select(c => new object[] { c });
 
     [Theory]
     [MemberData(nameof(Ciphers))]

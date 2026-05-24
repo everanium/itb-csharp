@@ -46,10 +46,13 @@ namespace Itb.Wrapper;
 
 /// <summary>
 /// Outer keystream cipher selected per wrap session. Each variant
-/// maps to one of the three cipher-name strings the underlying FFI
-/// accepts: <c>"aescmac"</c> / <c>"chacha20"</c> / <c>"siphash24"</c>. The
-/// Go-side constants are <c>wrapper.CipherAES128CTR</c> /
-/// <c>wrapper.CipherChaCha20</c> / <c>wrapper.CipherSipHash24</c>.
+/// maps to one of the nine cipher-name strings the underlying FFI
+/// accepts: <c>"aescmac"</c> / <c>"chacha20"</c> / <c>"siphash24"</c> /
+/// <c>"areion256"</c> / <c>"areion512"</c> / <c>"blake2b256"</c> /
+/// <c>"blake2b512"</c> / <c>"blake2s"</c> / <c>"blake3"</c>. The Go-side
+/// constants are <c>wrapper.CipherAES128CTR</c> /
+/// <c>wrapper.CipherChaCha20</c> / <c>wrapper.CipherSipHash24</c> and the
+/// matching <c>wrapper.Cipher*</c> values for the remaining six.
 /// </summary>
 public enum Cipher
 {
@@ -64,6 +67,30 @@ public enum Cipher
     /// Custom CTR construction over the SipHash-2-4 PRF; sound under
     /// the standard PRF assumption that justifies AES-CTR.</summary>
     SipHash24,
+    /// <summary>Areion-SoEM-256 in CTR mode — 32-byte key, 16-byte
+    /// nonce. Custom CTR construction over the Areion-SoEM-256 PRF;
+    /// sound under the standard PRF assumption.</summary>
+    Areion256,
+    /// <summary>Areion-SoEM-512 in CTR mode — 64-byte key, 16-byte
+    /// nonce. Custom CTR construction over the Areion-SoEM-512 PRF;
+    /// sound under the standard PRF assumption.</summary>
+    Areion512,
+    /// <summary>BLAKE2b-256 in CTR mode — 32-byte key, 16-byte nonce.
+    /// Custom CTR construction over the BLAKE2b-256 PRF; sound under
+    /// the standard PRF assumption.</summary>
+    Blake2b256,
+    /// <summary>BLAKE2b-512 in CTR mode — 32-byte key, 16-byte nonce.
+    /// Custom CTR construction over the BLAKE2b-512 PRF; sound under
+    /// the standard PRF assumption.</summary>
+    Blake2b512,
+    /// <summary>BLAKE2s in CTR mode — 32-byte key, 16-byte nonce.
+    /// Custom CTR construction over the BLAKE2s PRF; sound under the
+    /// standard PRF assumption.</summary>
+    Blake2s,
+    /// <summary>BLAKE3 in CTR mode — 32-byte key, 16-byte nonce.
+    /// Custom CTR construction over the BLAKE3 PRF; sound under the
+    /// standard PRF assumption.</summary>
+    Blake3,
 }
 
 /// <summary>
@@ -79,6 +106,12 @@ public static class CipherExtensions
         Cipher.Aes128Ctr => "aescmac",
         Cipher.ChaCha20 => "chacha20",
         Cipher.SipHash24 => "siphash24",
+        Cipher.Areion256 => "areion256",
+        Cipher.Areion512 => "areion512",
+        Cipher.Blake2b256 => "blake2b256",
+        Cipher.Blake2b512 => "blake2b512",
+        Cipher.Blake2s => "blake2s",
+        Cipher.Blake3 => "blake3",
         _ => throw new ArgumentOutOfRangeException(nameof(cipher), cipher, "unknown wrapper cipher"),
     };
 }
@@ -156,13 +189,19 @@ public sealed class WrapperHandleClosedException : ItbException
 /// </summary>
 public static class Wrapper
 {
-    /// <summary>Iteration order over all three supported outer
+    /// <summary>Iteration order over all nine supported outer
     /// ciphers.</summary>
     public static readonly Cipher[] AllCiphers = new[]
     {
-        Cipher.Aes128Ctr,
-        Cipher.ChaCha20,
+        Cipher.Areion256,
+        Cipher.Areion512,
         Cipher.SipHash24,
+        Cipher.Aes128Ctr,
+        Cipher.Blake2b256,
+        Cipher.Blake2b512,
+        Cipher.Blake2s,
+        Cipher.Blake3,
+        Cipher.ChaCha20,
     };
 
     /// <summary>
@@ -217,21 +256,16 @@ public static class Wrapper
     /// from a shared master.
     /// </summary>
     /// <remarks>
-    /// <paramref name="master"/> must be at least
-    /// <c>KeySize(cipher)</c> bytes; the returned key has length
+    /// <paramref name="master"/> must be at least 32 bytes (the
+    /// wrapper's uniform security floor); the returned key has length
     /// <c>KeySize(cipher)</c> (16 / 32 / 16 bytes for AES / ChaCha /
     /// SipHash). Throws <see cref="InvalidKeyException"/> when
-    /// <paramref name="master"/> is shorter than the cipher's key size.
+    /// <paramref name="master"/> is shorter than 32 bytes.
     /// </remarks>
     public static unsafe byte[] DeriveKey(Cipher cipher, ReadOnlySpan<byte> master)
     {
         var name = cipher.ToFfiName();
         var klen = KeySize(cipher);
-        if (master.Length < klen)
-        {
-            throw new InvalidKeyException(
-                $"wrapper {cipher.ToFfiName()}: master must be at least {klen} bytes, got {master.Length}");
-        }
         var outBuf = new byte[klen];
         nuint outLen;
         int rc;

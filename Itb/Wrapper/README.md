@@ -17,7 +17,7 @@ ITB encrypts content into RGBWYOPA pixel containers. The construction provides *
 - Non-AEAD path: per-chunk header carries width / height / container layout.
 - Streaming AEAD path: a once per-stream 32-byte streamID prefix plus per-chunk `nonce || W || H || container || flag_byte`.
 
-A passive observer who knows ITB ships with an 8-channel pixel container and a 32-byte streamID prefix can pattern-match the bytes. The format-deniability wrap hides that surface under a generic outer cipher: AES-128-CTR, ChaCha20 (RFC 8439), or SipHash-2-4 in CTR mode. After wrapping, the wire is `nonce || keystream-XOR(bytestream)` — the same shape used by countless other protocols. An observer sees a small leading nonce followed by pseudorandom-looking bytes; pattern-matching does not distinguish ITB from any other stream cipher payload.
+A passive observer who knows ITB ships with an 8-channel pixel container and a 32-byte streamID prefix can pattern-match the bytes. The format-deniability wrap hides that surface under a generic outer cipher: Areion-SoEM-256, Areion-SoEM-512, SipHash-2-4, AES-128-CTR, BLAKE2b-256, BLAKE2b-512, BLAKE2s, BLAKE3, or ChaCha20 (RFC 8439) in CTR mode. After wrapping, the wire is `nonce || keystream-XOR(bytestream)` — the same shape used by countless other protocols. An observer sees a small leading nonce followed by pseudorandom-looking bytes; pattern-matching does not distinguish ITB from any other stream cipher payload.
 
 This is **not** a random-oracle indistinguishability claim. It is a "looks like a different well-known cipher" claim. The wrap exists for format-deniability ONLY; ITB already provides confidentiality (content-deniability) and the AEAD path already provides per-stream and per-chunk integrity. The Non-AEAD streaming path has no integrity by design and the wrap does not add any.
 
@@ -43,9 +43,15 @@ The C# binding exposes Streaming AEAD via the `Encryptor.EncryptStreamAuth` / `D
 
 | Cipher | Enum | Key | Nonce | Notes |
 |---|---|---|---|---|
-| AES-128-CTR | `Cipher.Aes128Ctr` (`"aescmac"`) | 16 B | 16 B | libitb stdlib path with AES-NI. |
-| ChaCha20 (RFC 8439) | `Cipher.ChaCha20` (`"chacha20"`) | 32 B | 12 B | `golang.org/x/crypto/chacha20`. No AES-NI dependency. |
+| Areion-SoEM-256 in CTR mode | `Cipher.Areion256` (`"areion256"`) | 32 B | 16 B | Areion-SoEM-256 PRF. Custom CTR construction; sound under standard PRF assumption. |
+| Areion-SoEM-512 in CTR mode | `Cipher.Areion512` (`"areion512"`) | 64 B | 16 B | Areion-SoEM-512 PRF. Custom CTR construction; sound under standard PRF assumption. |
 | SipHash-2-4 in CTR mode | `Cipher.SipHash24` (`"siphash24"`) | 16 B | 16 B | `github.com/dchest/siphash` PRF. Custom CTR construction; sound under standard PRF assumption. |
+| AES-128-CTR | `Cipher.Aes128Ctr` (`"aescmac"`) | 16 B | 16 B | libitb stdlib path with AES-NI. |
+| BLAKE2b-256 in CTR mode | `Cipher.Blake2b256` (`"blake2b256"`) | 32 B | 16 B | BLAKE2b-256 PRF. Custom CTR construction; sound under standard PRF assumption. |
+| BLAKE2b-512 in CTR mode | `Cipher.Blake2b512` (`"blake2b512"`) | 32 B | 16 B | BLAKE2b-512 PRF. Custom CTR construction; sound under standard PRF assumption. |
+| BLAKE2s in CTR mode | `Cipher.Blake2s` (`"blake2s"`) | 32 B | 16 B | BLAKE2s PRF. Custom CTR construction; sound under standard PRF assumption. |
+| BLAKE3 in CTR mode | `Cipher.Blake3` (`"blake3"`) | 32 B | 16 B | BLAKE3 PRF. Custom CTR construction; sound under standard PRF assumption. |
+| ChaCha20 (RFC 8439) | `Cipher.ChaCha20` (`"chacha20"`) | 32 B | 12 B | `golang.org/x/crypto/chacha20`. No AES-NI dependency. |
 
 The SipHash-CTR construction:
 
@@ -63,7 +69,7 @@ dotnet run --project Itb.Eitb -c Release
 dotnet run --project Itb.Eitb -c Release -- --help
 ```
 
-Below: `using Itb;` plus `using Itb.Wrapper;` (with `OuterCipher = Itb.Wrapper.Cipher`) is assumed. The `cipher` variable holds one of `Cipher.Aes128Ctr` / `Cipher.ChaCha20` / `Cipher.SipHash24`.
+Below: `using Itb;` plus `using Itb.Wrapper;` (with `OuterCipher = Itb.Wrapper.Cipher`) is assumed. The `cipher` variable holds one of `Cipher.Areion256` / `Cipher.Areion512` / `Cipher.SipHash24` / `Cipher.Aes128Ctr` / `Cipher.Blake2b256` / `Cipher.Blake2b512` / `Cipher.Blake2s` / `Cipher.Blake3` / `Cipher.ChaCha20`.
 
 ### 1. Streaming AEAD Easy (MAC Authenticated, IO-Driven)
 

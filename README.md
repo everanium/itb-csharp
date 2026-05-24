@@ -1273,10 +1273,11 @@ Every public symbol lives in the `Itb` namespace. The wrapper
 
 | Symbol | Purpose |
 |---|---|
-| `Cipher.Aes128Ctr / ChaCha20 / SipHash24` | Cipher enum |
+| `Cipher.Aes128Ctr / ChaCha20 / SipHash24 / Areion256 / Areion512 / Blake2b256 / Blake2b512 / Blake2s / Blake3` | Cipher enum |
 | `Wrapper.AllCiphers` | Canonical cipher list |
 | `Wrapper.KeySize(cipher) / NonceSize(cipher)` | Cipher dimension accessors |
 | `Wrapper.GenerateKey(cipher) -> byte[]` | CSPRNG-fresh wrapper key |
+| `Wrapper.DeriveKey(cipher, master) -> byte[]` | Deterministic wrapper key from a master secret (>= 32 bytes, e.g. an ML-KEM shared secret) |
 | `Wrapper.Wrap(cipher, key, blob) -> byte[]` / `Wrapper.Unwrap(cipher, key, wire) -> byte[]` | Single Message Wrap / Unwrap |
 | `Wrapper.WrapInPlace(cipher, key, buf) -> byte[]` / `Wrapper.UnwrapInPlace(cipher, key, wire) -> Span<byte>` | In-place Wrap / Unwrap |
 | `new WrapStreamWriter(cipher, key)` / `new UnwrapStreamReader(cipher, key, wireNonce)` | Streaming wrap writer / unwrap reader |
