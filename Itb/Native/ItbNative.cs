@@ -243,6 +243,12 @@ internal static unsafe partial class ItbNative
     internal static partial int ITB_GetLockSoup();
 
     [LibraryImport("libitb")]
+    internal static partial int ITB_SetLockBatch(int mode);
+
+    [LibraryImport("libitb")]
+    internal static partial int ITB_GetLockBatch();
+
+    [LibraryImport("libitb")]
     internal static partial int ITB_SetMaxWorkers(int n);
 
     [LibraryImport("libitb")]
@@ -380,6 +386,9 @@ internal static unsafe partial class ItbNative
 
     [LibraryImport("libitb")]
     internal static partial int ITB_Easy_SetLockSoup(nuint handle, int mode);
+
+    [LibraryImport("libitb")]
+    internal static partial int ITB_Easy_SetLockBatch(nuint handle, int mode);
 
     [LibraryImport("libitb")]
     internal static partial int ITB_Easy_SetLockSeed(nuint handle, int mode);

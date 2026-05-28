@@ -132,7 +132,7 @@ public sealed class WrapStreamWriter : IDisposable
     /// <summary>
     /// XOR-encrypts <paramref name="buf"/> in place through the
     /// keystream. The keystream counter advances by <c>buf.Length</c>
-    /// bytes. The zero-allocation alternative to <see cref="Update"/>
+    /// bytes. The no-output-buffer-allocation alternative to <see cref="Update"/>
     /// for callers that already own a writable buffer.
     /// </summary>
     /// <exception cref="WrapperHandleClosedException">The writer has

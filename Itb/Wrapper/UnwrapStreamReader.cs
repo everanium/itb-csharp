@@ -103,7 +103,7 @@ public sealed class UnwrapStreamReader : IDisposable
 
     /// <summary>
     /// XOR-decrypts <paramref name="buf"/> in place through the
-    /// keystream. The zero-allocation alternative to
+    /// keystream. The no-output-buffer-allocation alternative to
     /// <see cref="Update"/> for callers that already own a writable
     /// buffer carrying the wire bytes.
     /// </summary>

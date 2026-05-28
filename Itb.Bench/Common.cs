@@ -14,6 +14,10 @@
 // * ITB_NONCE_BITS  — process-wide nonce width override; valid
 //   values 128 / 256 / 512. Maps to Library.NonceBits before any
 //   Encryptor is constructed. Default 128.
+// * ITB_LOCKBATCH   — non-empty / non-0 enables Lock Batch (performance
+//   Lock Soup mode); set with ITB_LOCKSEED. Every Easy Mode encryptor in
+//   this run additionally calls Encryptor.SetLockBatch(1). Inert unless
+//   Lock Soup is engaged via ITB_LOCKSEED. Default off.
 // * ITB_LOCKSEED    — when set to a non-empty / non-"0" value, every
 //   Easy Mode encryptor in this run calls Encryptor.SetLockSeed(1)
 //   AND Library.LockSoup is set to 1 at start. Mixed-primitive cases
@@ -115,6 +119,23 @@ internal static class Common
                     $"ITB_NONCE_BITS=\"{v}\" invalid (expected 128/256/512); using {defaultBits}");
                 return defaultBits;
         }
+    }
+
+    /// <summary>
+    /// <c>true</c> when <c>ITB_LOCKBATCH</c> is set to a non-empty /
+    /// non-<c>0</c> value. Enables the Lock Batch performance Lock Soup
+    /// mode — every Easy Mode encryptor additionally calls
+    /// <see cref="Encryptor.SetLockBatch"/>(1). Inert unless Lock Soup is
+    /// engaged via <c>ITB_LOCKSEED</c>.
+    /// </summary>
+    public static bool EnvLockBatch()
+    {
+        var v = Environment.GetEnvironmentVariable("ITB_LOCKBATCH");
+        if (string.IsNullOrEmpty(v))
+        {
+            return false;
+        }
+        return v != "0";
     }
 
     /// <summary>
@@ -251,22 +272,45 @@ internal static class Common
     }
 
     /// <summary>
-    /// Run every case in <paramref name="cases"/> and print one
-    /// Go-bench-style line per case to stdout. Honours
-    /// <c>ITB_BENCH_FILTER</c> for substring scoping (case-insensitive)
-    /// and <c>ITB_BENCH_MIN_SEC</c> for the per-case wall-clock
-    /// budget.
+    /// Measure a single pre-built case at the given
+    /// <paramref name="minSeconds"/> threshold and emit one
+    /// Go-bench-style report line.  Used by the lazy bench runner in
+    /// <c>BenchWrapper.RunLazy</c> — the caller handles filtering and
+    /// the header line; this method handles only measurement + output
+    /// for one case.
     /// </summary>
-    public static void RunAll(IReadOnlyList<BenchCase> cases)
+    public static void MeasureOne(BenchCase bench, double minSeconds)
+    {
+        Measure(bench, minSeconds);
+    }
+
+    /// <summary>
+    /// Run bench cases one at a time, building each just before timing.
+    ///
+    /// <para>Accepts a sequence of <c>(name, factory)</c> pairs where
+    /// <c>factory()</c> builds the <see cref="BenchCase"/> on demand.
+    /// This bounds peak RSS to roughly one case regardless of the total
+    /// number of cases — the payload buffer allocated by
+    /// <c>factory()</c> is eligible for GC before the next factory is
+    /// called.</para>
+    ///
+    /// <para>The first argument is the full list of all names (used to
+    /// report available cases when a filter matches nothing); the second
+    /// is the filtered list of <c>(name, factory)</c> pairs to actually
+    /// run.</para>
+    /// </summary>
+    public static void RunLazy(
+        IReadOnlyList<(string Name, Func<BenchCase> Factory)> lazyCases)
     {
         var flt = EnvBenchFilter();
         var minSeconds = EnvMinSeconds();
 
-        var allNames = cases.Select(c => c.Name).ToArray();
+        var allNames = lazyCases.Select(p => p.Name).ToArray();
         var selected = flt is null
-            ? cases.ToList()
-            : cases.Where(c =>
-                c.Name.Contains(flt, StringComparison.OrdinalIgnoreCase)).ToList();
+            ? lazyCases.ToList()
+            : lazyCases.Where(p =>
+                p.Name.Contains(flt, StringComparison.OrdinalIgnoreCase)).ToList();
+
         if (selected.Count == 0)
         {
             Console.Error.WriteLine(
@@ -277,11 +321,13 @@ internal static class Common
         Console.WriteLine(
             string.Format(
                 System.Globalization.CultureInfo.InvariantCulture,
-                "# benchmarks={0} payload_bytes={1} min_seconds={2}",
-                selected.Count, selected[0].PayloadBytes, minSeconds));
+                "# benchmarks={0} min_seconds={1}",
+                selected.Count, minSeconds));
         Console.Out.Flush();
-        foreach (var bench in selected)
+
+        foreach (var (_, factory) in selected)
         {
+            var bench = factory();
             Measure(bench, minSeconds);
         }
     }
@@ -291,13 +337,19 @@ internal static class Common
     /// <see cref="Encryptor.SetLockSeed"/> with mode 1 auto-couples
     /// BitSoup + LockSoup on the Single Ouroboros encryptor; the
     /// auto-couple is intentional behaviour of the underlying easy
-    /// package, not a binding-side workaround.
+    /// package, not a binding-side workaround. When <c>ITB_LOCKBATCH</c>
+    /// is also set, the encryptor additionally enables the Lock Batch
+    /// performance Lock Soup mode via <see cref="Encryptor.SetLockBatch"/>.
     /// </summary>
     public static void ApplyLockSeedIfRequested(Encryptor enc)
     {
         if (EnvLockSeed())
         {
             enc.SetLockSeed(1);
+        }
+        if (EnvLockBatch())
+        {
+            enc.SetLockBatch(1);
         }
     }
 }

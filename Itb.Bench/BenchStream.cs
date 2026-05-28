@@ -4,13 +4,12 @@
 // caller-driven per-chunk loop). Eight cases per width × two widths
 // = sixteen total streaming cases.
 //
-// The build helpers BuildStreamCasesSingle / BuildStreamCasesTriple
-// fan the eight per-width cases into the existing BenchSingle.Run /
-// BenchTriple.Run case lists via a single AddRange invocation (one
-// line per file). Setup — CSPRNG payload fill, Encryptor / Seed /
+// The lazy entry points BuildStreamLazyCasesSingle /
+// BuildStreamLazyCasesTriple return (name, factory) pairs that are
+// fanned into the existing BenchSingle.Run / BenchTriple.Run lazy
+// case lists. Setup — CSPRNG payload fill, Encryptor / Seed /
 // Mac construction, decrypt-side ciphertext pre-encryption — runs
-// outside the timed iter body, mirroring the Python and Rust
-// streaming-bench precedent.
+// inside each factory, deferred until just before measurement.
 //
 // Configuration (lock-step across all 16 cases):
 //
@@ -43,12 +42,12 @@ using System.Security.Cryptography;
 namespace Itb.Bench;
 
 /// <summary>
-/// Streaming bench-case builders for the (Mode × Width × Op × Variant)
+/// Streaming bench-case lazy factories for the (Mode × Width × Op × Variant)
 /// matrix. The two public entry points are
-/// <see cref="BuildStreamCasesSingle"/> (eight Single Ouroboros cases)
-/// and <see cref="BuildStreamCasesTriple"/> (eight Triple Ouroboros
-/// cases); each is wired into the existing BenchSingle / BenchTriple
-/// case fan-in via one AddRange line in their respective Run method.
+/// <see cref="BuildStreamLazyCasesSingle"/> (eight Single Ouroboros lazy
+/// factory pairs) and <see cref="BuildStreamLazyCasesTriple"/> (eight Triple
+/// Ouroboros lazy factory pairs); each is fanned into the existing
+/// BenchSingle / BenchTriple lazy case list via AddRange.
 /// </summary>
 internal static class BenchStream
 {
@@ -75,45 +74,47 @@ internal static class BenchStream
     private const int FramingHeaderBytes = 4;
 
     // ----------------------------------------------------------------
-    // Public entry points — fan-in helpers for BenchSingle / BenchTriple
+    // Public entry points — lazy factory helpers for BenchSingle / BenchTriple
     // ----------------------------------------------------------------
 
     /// <summary>
-    /// Build the eight Single Ouroboros streaming-bench cases:
-    /// Easy + Low-Level, encrypt + decrypt, AEAD-IO + UserLoop.
+    /// Return eight Single Ouroboros streaming-bench lazy factory pairs.
+    /// Each factory is called just before its case is measured.
     /// </summary>
-    public static List<BenchCase> BuildStreamCasesSingle()
+    public static List<(string Name, Func<BenchCase> Factory)> BuildStreamLazyCasesSingle()
     {
-        var cases = new List<BenchCase>(8);
-        var basePrefix = $"bench_single_stream_{StreamPrimitive}_{Common.KeyBits}bit_64mb";
-        cases.Add(MakeEasyAeadIoEncryptSingle($"{basePrefix}_easy_encrypt_aead_io"));
-        cases.Add(MakeEasyAeadIoDecryptSingle($"{basePrefix}_easy_decrypt_aead_io"));
-        cases.Add(MakeEasyUserLoopEncryptSingle($"{basePrefix}_easy_encrypt_userloop"));
-        cases.Add(MakeEasyUserLoopDecryptSingle($"{basePrefix}_easy_decrypt_userloop"));
-        cases.Add(MakeLowLevelAeadIoEncryptSingle($"{basePrefix}_lowlevel_encrypt_aead_io"));
-        cases.Add(MakeLowLevelAeadIoDecryptSingle($"{basePrefix}_lowlevel_decrypt_aead_io"));
-        cases.Add(MakeLowLevelUserLoopEncryptSingle($"{basePrefix}_lowlevel_encrypt_userloop"));
-        cases.Add(MakeLowLevelUserLoopDecryptSingle($"{basePrefix}_lowlevel_decrypt_userloop"));
-        return cases;
+        var bp = $"bench_single_stream_{StreamPrimitive}_{Common.KeyBits}bit_64mb";
+        return new List<(string, Func<BenchCase>)>
+        {
+            ($"{bp}_easy_encrypt_aead_io",         () => MakeEasyAeadIoEncryptSingle($"{bp}_easy_encrypt_aead_io")),
+            ($"{bp}_easy_decrypt_aead_io",         () => MakeEasyAeadIoDecryptSingle($"{bp}_easy_decrypt_aead_io")),
+            ($"{bp}_easy_encrypt_userloop",        () => MakeEasyUserLoopEncryptSingle($"{bp}_easy_encrypt_userloop")),
+            ($"{bp}_easy_decrypt_userloop",        () => MakeEasyUserLoopDecryptSingle($"{bp}_easy_decrypt_userloop")),
+            ($"{bp}_lowlevel_encrypt_aead_io",     () => MakeLowLevelAeadIoEncryptSingle($"{bp}_lowlevel_encrypt_aead_io")),
+            ($"{bp}_lowlevel_decrypt_aead_io",     () => MakeLowLevelAeadIoDecryptSingle($"{bp}_lowlevel_decrypt_aead_io")),
+            ($"{bp}_lowlevel_encrypt_userloop",    () => MakeLowLevelUserLoopEncryptSingle($"{bp}_lowlevel_encrypt_userloop")),
+            ($"{bp}_lowlevel_decrypt_userloop",    () => MakeLowLevelUserLoopDecryptSingle($"{bp}_lowlevel_decrypt_userloop")),
+        };
     }
 
     /// <summary>
-    /// Build the eight Triple Ouroboros streaming-bench cases:
-    /// Easy + Low-Level, encrypt + decrypt, AEAD-IO + UserLoop.
+    /// Return eight Triple Ouroboros streaming-bench lazy factory pairs.
+    /// Each factory is called just before its case is measured.
     /// </summary>
-    public static List<BenchCase> BuildStreamCasesTriple()
+    public static List<(string Name, Func<BenchCase> Factory)> BuildStreamLazyCasesTriple()
     {
-        var cases = new List<BenchCase>(8);
-        var basePrefix = $"bench_triple_stream_{StreamPrimitive}_{Common.KeyBits}bit_64mb";
-        cases.Add(MakeEasyAeadIoEncryptTriple($"{basePrefix}_easy_encrypt_aead_io"));
-        cases.Add(MakeEasyAeadIoDecryptTriple($"{basePrefix}_easy_decrypt_aead_io"));
-        cases.Add(MakeEasyUserLoopEncryptTriple($"{basePrefix}_easy_encrypt_userloop"));
-        cases.Add(MakeEasyUserLoopDecryptTriple($"{basePrefix}_easy_decrypt_userloop"));
-        cases.Add(MakeLowLevelAeadIoEncryptTriple($"{basePrefix}_lowlevel_encrypt_aead_io"));
-        cases.Add(MakeLowLevelAeadIoDecryptTriple($"{basePrefix}_lowlevel_decrypt_aead_io"));
-        cases.Add(MakeLowLevelUserLoopEncryptTriple($"{basePrefix}_lowlevel_encrypt_userloop"));
-        cases.Add(MakeLowLevelUserLoopDecryptTriple($"{basePrefix}_lowlevel_decrypt_userloop"));
-        return cases;
+        var bp = $"bench_triple_stream_{StreamPrimitive}_{Common.KeyBits}bit_64mb";
+        return new List<(string, Func<BenchCase>)>
+        {
+            ($"{bp}_easy_encrypt_aead_io",         () => MakeEasyAeadIoEncryptTriple($"{bp}_easy_encrypt_aead_io")),
+            ($"{bp}_easy_decrypt_aead_io",         () => MakeEasyAeadIoDecryptTriple($"{bp}_easy_decrypt_aead_io")),
+            ($"{bp}_easy_encrypt_userloop",        () => MakeEasyUserLoopEncryptTriple($"{bp}_easy_encrypt_userloop")),
+            ($"{bp}_easy_decrypt_userloop",        () => MakeEasyUserLoopDecryptTriple($"{bp}_easy_decrypt_userloop")),
+            ($"{bp}_lowlevel_encrypt_aead_io",     () => MakeLowLevelAeadIoEncryptTriple($"{bp}_lowlevel_encrypt_aead_io")),
+            ($"{bp}_lowlevel_decrypt_aead_io",     () => MakeLowLevelAeadIoDecryptTriple($"{bp}_lowlevel_decrypt_aead_io")),
+            ($"{bp}_lowlevel_encrypt_userloop",    () => MakeLowLevelUserLoopEncryptTriple($"{bp}_lowlevel_encrypt_userloop")),
+            ($"{bp}_lowlevel_decrypt_userloop",    () => MakeLowLevelUserLoopDecryptTriple($"{bp}_lowlevel_decrypt_userloop")),
+        };
     }
 
     // ----------------------------------------------------------------

@@ -111,7 +111,7 @@ chunked I/O, error paths, lockSeed lifecycle.
 
 A custom Go-bench-style harness lives under `Itb.Bench/` and
 covers the four ops (`encrypt`, `decrypt`, `encrypt_auth`,
-`decrypt_auth`) across the nine PRF-grade primitives plus one
+`decrypt_auth`) across PRF-grade primitives plus one
 mixed-primitive variant for both Single and Triple Ouroboros at
 1024-bit ITB key width and 16 MiB payload. Run via:
 
@@ -468,6 +468,11 @@ enc.SetBitSoup(1);        // optional bit-level split ("bit-soup"; default: 0 = 
 enc.SetLockSoup(1);       // optional Insane Interlocked Mode: per-chunk PRF-keyed
                           // bit-permutation overlay on top of bit-soup;
                           // auto-enabled for Single Ouroboros if SetBitSoup(1) is on
+enc.SetLockBatch(1);      // Lock Batch is the performance Lock Soup mode: recommended
+                          // in every case when the configured hash is PRF-grade, since
+                          // security is preserved under the PRF assumption while
+                          // throughput rises. Symmetric option — set identically on
+                          // the encrypt and decrypt sides.
 
 // enc.SetLockSeed(1);    // optional dedicated lockSeed for the bit-permutation
                           // derivation channel — separates that PRF's keying
@@ -539,10 +544,11 @@ dec.SetNonceBits(512);
 dec.SetBarrierFill(4);
 dec.SetBitSoup(1);
 dec.SetLockSoup(1);
+dec.SetLockBatch(1);      // Recommended under the PRF assumption — the performance Lock Soup mode; symmetric, set on both sides.
 
 // Restore PRF keys, seed components, MAC key, and the per-instance
 // configuration overrides (NonceBits / BarrierFill / BitSoup /
-// LockSoup / LockSeed) from the saved blob.
+// LockSoup / LockBatch / LockSeed) from the saved blob.
 dec.Import(blob);
 
 // Strip the leading nonce, unwrap the body, then decrypt.
@@ -738,6 +744,11 @@ Library.LockSoup = 1;       // optional Insane Interlocked Mode: per-chunk PRF-k
                             // bit-permutation overlay on top of bit-soup;
                             // automatically enabled for Single Ouroboros if
                             // Library.BitSoup = 1 or vice versa
+Library.LockBatch = 1;      // Lock Batch is the performance Lock Soup mode: recommended
+                            // in every case when the configured hash is PRF-grade, since
+                            // security is preserved under the PRF assumption while
+                            // throughput rises. Symmetric option — set identically on
+                            // the encrypt and decrypt sides.
 
 // Three independent CSPRNG-keyed Areion-SoEM-512 seeds. Each Seed
 // pre-keys its primitive once at construction; the C ABI / FFI
@@ -980,13 +991,7 @@ reject the wrong importer with `ItbBlobModeMismatchException`.
 
 ## Hash primitives (Single / Triple)
 
-Names match the canonical `hashes/` registry. Listed below in the
-canonical primitive ordering used across ITB documentation —
-`AES-CMAC`, `SipHash-2-4`, `ChaCha20`, `Areion-SoEM-256`,
-`BLAKE2s`, `BLAKE3`, `BLAKE2b-256`, `BLAKE2b-512`,
-`Areion-SoEM-512` — the FFI names are `aescmac`, `siphash24`,
-`chacha20`, `areion256`, `blake2s`, `blake3`, `blake2b256`,
-`blake2b512`, `areion512`. Triple Ouroboros (3× security) takes
+Names match the canonical `hashes/` registry. Triple Ouroboros takes
 seven seeds (one shared `noiseSeed` plus three `dataSeed` and three
 `startSeed`) via `Cipher.EncryptTriple` / `Cipher.DecryptTriple`
 and the authenticated counterparts `Cipher.EncryptAuthTriple` /
@@ -1029,6 +1034,7 @@ all-CPUs default.
 | `Library.BarrierFill` | 1, 2, 4, 8, 16, 32 | 1 | yes (`BadInput` on miss) |
 | `Library.BitSoup` | 0 (off), non-zero (on) | 0 | forwarded |
 | `Library.LockSoup` | 0 (off), non-zero (on) | 0 | forwarded |
+| `Library.LockBatch` | 0 (off), non-zero (on) | 0 | forwarded |
 
 Read-only properties: `Library.MaxKeyBits`, `Library.Channels`,
 `Library.HeaderSize`, `Library.Version`.
@@ -1049,7 +1055,7 @@ MAC names available via `Library.ListMacs()`: `kmac256`,
 The libitb shared library exposes process-wide configuration
 through a small set of atomics (`Library.NonceBits`,
 `Library.BarrierFill`, `Library.BitSoup`, `Library.LockSoup`,
-`Library.MaxWorkers`). Multiple threads calling these setters
+`Library.LockBatch`, `Library.MaxWorkers`). Multiple threads calling these setters
 concurrently without external coordination will race for the
 final value visible to subsequent encrypt / decrypt calls —
 serialise the mutators behind a `lock` (or set them once at
@@ -1208,6 +1214,7 @@ Every public symbol lives in the `Itb` namespace. The wrapper
 |---|---|
 | `Library.BitSoup { get; set; }` | Bit Soup mode toggle |
 | `Library.LockSoup { get; set; }` | Lock Soup mode toggle |
+| `Library.LockBatch { get; set; }` | Lock Batch mode toggle (performance variant of Lock Soup; recommended under the PRF assumption; symmetric; inert unless Lock Soup is engaged) |
 | `Library.MaxWorkers { get; set; }` | Worker pool cap |
 | `Library.NonceBits { get; set; }` | Nonce width (128 / 256 / 512) |
 | `Library.BarrierFill { get; set; }` | Barrier-fill factor |
@@ -1239,7 +1246,7 @@ Every public symbol lives in the `Itb` namespace. The wrapper
 | `new Encryptor(primitive, keyBits, mac=null, mode="single")` | Single-primitive constructor |
 | `Encryptor.Mixed(primitives, keyBits, mac=null)` / `Encryptor.Mixed3(primitives, keyBits, mac=null)` | Mixed-primitive Single / Triple |
 | `enc.Encrypt(pt) / Decrypt(ct) / EncryptAuth(pt) / DecryptAuth(ct)` | Cipher entry points |
-| `enc.SetNonceBits / SetBarrierFill / SetBitSoup / SetLockSoup / SetLockSeed / SetChunkSize` | Per-instance setters |
+| `enc.SetNonceBits / SetBarrierFill / SetBitSoup / SetLockSoup / SetLockBatch / SetLockSeed / SetChunkSize` | Per-instance setters |
 | `enc.Primitive / KeyBits / Mode / MacName / SeedCount / NonceBits / HeaderSize / IsMixed / HasPRFKeys / PrimitiveAt(slot)` | Accessors |
 | `enc.PRFKey(slot) / MacKey() / SeedComponents(slot) / ParseChunkLen(header)` | Key-material + per-instance chunk-length parser |
 | `enc.Export() / Import(blob)` | State-blob persistence |
@@ -1273,7 +1280,7 @@ Every public symbol lives in the `Itb` namespace. The wrapper
 
 | Symbol | Purpose |
 |---|---|
-| `Cipher.Aes128Ctr / ChaCha20 / SipHash24 / Areion256 / Areion512 / Blake2b256 / Blake2b512 / Blake2s / Blake3` | Cipher enum |
+| `Cipher.Areion256 / Areion512 / Blake2b256 / Blake2b512 / Blake2s / Blake3 / Aes128Ctr / SipHash24 / ChaCha20 / etc...` | Cipher enum |
 | `Wrapper.AllCiphers` | Canonical cipher list |
 | `Wrapper.KeySize(cipher) / NonceSize(cipher)` | Cipher dimension accessors |
 | `Wrapper.GenerateKey(cipher) -> byte[]` | CSPRNG-fresh wrapper key |

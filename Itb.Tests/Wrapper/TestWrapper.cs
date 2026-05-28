@@ -34,12 +34,12 @@ public class TestWrapperConstants
         {
             new object[] { OuterCipher.Areion256, 32 },
             new object[] { OuterCipher.Areion512, 64 },
-            new object[] { OuterCipher.SipHash24, 16 },
-            new object[] { OuterCipher.Aes128Ctr, 16 },
             new object[] { OuterCipher.Blake2b256, 32 },
             new object[] { OuterCipher.Blake2b512, 32 },
             new object[] { OuterCipher.Blake2s, 32 },
             new object[] { OuterCipher.Blake3, 32 },
+            new object[] { OuterCipher.Aes128Ctr, 16 },
+            new object[] { OuterCipher.SipHash24, 16 },
             new object[] { OuterCipher.ChaCha20, 32 },
         };
 
@@ -48,12 +48,12 @@ public class TestWrapperConstants
         {
             new object[] { OuterCipher.Areion256, 16 },
             new object[] { OuterCipher.Areion512, 16 },
-            new object[] { OuterCipher.SipHash24, 16 },
-            new object[] { OuterCipher.Aes128Ctr, 16 },
             new object[] { OuterCipher.Blake2b256, 16 },
             new object[] { OuterCipher.Blake2b512, 16 },
             new object[] { OuterCipher.Blake2s, 16 },
             new object[] { OuterCipher.Blake3, 16 },
+            new object[] { OuterCipher.Aes128Ctr, 16 },
+            new object[] { OuterCipher.SipHash24, 16 },
             new object[] { OuterCipher.ChaCha20, 12 },
         };
 
@@ -91,12 +91,12 @@ public class TestWrapperConstants
             {
                 OuterCipher.Areion256,
                 OuterCipher.Areion512,
-                OuterCipher.SipHash24,
-                OuterCipher.Aes128Ctr,
                 OuterCipher.Blake2b256,
                 OuterCipher.Blake2b512,
                 OuterCipher.Blake2s,
                 OuterCipher.Blake3,
+                OuterCipher.Aes128Ctr,
+                OuterCipher.SipHash24,
                 OuterCipher.ChaCha20,
             },
             WrapperCore.AllCiphers);

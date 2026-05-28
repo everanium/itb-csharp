@@ -17,7 +17,7 @@ ITB encrypts content into RGBWYOPA pixel containers. The construction provides *
 - Non-AEAD path: per-chunk header carries width / height / container layout.
 - Streaming AEAD path: a once per-stream 32-byte streamID prefix plus per-chunk `nonce || W || H || container || flag_byte`.
 
-A passive observer who knows ITB ships with an 8-channel pixel container and a 32-byte streamID prefix can pattern-match the bytes. The format-deniability wrap hides that surface under a generic outer cipher: Areion-SoEM-256, Areion-SoEM-512, SipHash-2-4, AES-128-CTR, BLAKE2b-256, BLAKE2b-512, BLAKE2s, BLAKE3, or ChaCha20 (RFC 8439) in CTR mode. After wrapping, the wire is `nonce || keystream-XOR(bytestream)` — the same shape used by countless other protocols. An observer sees a small leading nonce followed by pseudorandom-looking bytes; pattern-matching does not distinguish ITB from any other stream cipher payload.
+A passive observer who knows ITB ships with an 8-channel pixel container and a 32-byte streamID prefix can pattern-match the bytes. The format-deniability wrap hides that surface under a generic outer cipher in CTR mode. After wrapping, the wire is `nonce || keystream-XOR(bytestream)` — the same shape used by countless other protocols. An observer sees a small leading nonce followed by pseudorandom-looking bytes; pattern-matching does not distinguish ITB from any other stream cipher payload.
 
 This is **not** a random-oracle indistinguishability claim. It is a "looks like a different well-known cipher" claim. The wrap exists for format-deniability ONLY; ITB already provides confidentiality (content-deniability) and the AEAD path already provides per-stream and per-chunk integrity. The Non-AEAD streaming path has no integrity by design and the wrap does not add any.
 
@@ -28,7 +28,7 @@ The C# surface exposes Single Message helpers (immutable + in-place mutation) an
 | Helper | Wire format | Use case |
 |---|---|---|
 | `Wrapper.Wrap` / `Wrapper.Unwrap` | `nonce \|\| keystream-XOR(blob)` | Single Message Encrypt / EncryptAuth output, immutable plaintext path. |
-| `Wrapper.WrapInPlace` / `Wrapper.UnwrapInPlace` | same as `Wrap` / `Unwrap` | Single Message, zero-allocation steady state. Mutates the caller's `Span<byte>`. |
+| `Wrapper.WrapInPlace` / `Wrapper.UnwrapInPlace` | same as `Wrap` / `Unwrap` | Single Message, no output-buffer allocation. Mutates the caller's `Span<byte>`. |
 | `WrapStreamWriter` / `UnwrapStreamReader` | `nonce` + keystream-XOR(continuous bytestream) | streaming use — Streaming AEAD wraps the entire bytestream end-to-end; User-Driven Loop emits per-chunk caller-side framing (`u32_LE` length prefix) through the wrap-writer so the framing bytes also pass through the keystream XOR. |
 
 The single keystream advances monotonically across all bytes within one wrap session. A fresh CSPRNG nonce is generated per session; emitted once at stream start; never reused across sessions. This is standard CTR mode usage — within one stream, one nonce + counter is correct.
@@ -37,7 +37,7 @@ No length-prefix or other framing byte appears in cleartext on the wire in any w
 
 ### Binding asymmetry
 
-The C# binding exposes Streaming AEAD via the `Encryptor.EncryptStreamAuth` / `DecryptStreamAuth` pair (Easy) and `StreamPipeline.EncryptStreamAuth` / `DecryptStreamAuth` (Low-Level), both consuming `System.IO.Stream` arguments. The Streaming No MAC path has **no** `System.IO.Stream` adapter for the wrap layer. This asymmetry is intentional. The Non-AEAD streaming arm in the C# wrapper covers the **User-Driven Loop** variant only — caller produces an ITB ciphertext per chunk via `enc.Encrypt(chunk)`, frames `u32_LE_len || ct`, and pushes through the streaming wrapper handle. See CLAUDE.md.
+The C# binding exposes Streaming AEAD via the `Encryptor.EncryptStreamAuth` / `DecryptStreamAuth` pair (Easy) and `StreamPipeline.EncryptStreamAuth` / `DecryptStreamAuth` (Low-Level), both consuming `System.IO.Stream` arguments. The Streaming No MAC path has **no** `System.IO.Stream` adapter for the wrap layer. This asymmetry is intentional. The Non-AEAD streaming arm in the C# wrapper covers the **User-Driven Loop** variant only — caller produces an ITB ciphertext per chunk via `enc.Encrypt(chunk)`, frames `u32_LE_len || ct`, and pushes through the streaming wrapper handle.
 
 ## Outer ciphers
 
@@ -45,12 +45,12 @@ The C# binding exposes Streaming AEAD via the `Encryptor.EncryptStreamAuth` / `D
 |---|---|---|---|---|
 | Areion-SoEM-256 in CTR mode | `Cipher.Areion256` (`"areion256"`) | 32 B | 16 B | Areion-SoEM-256 PRF. Custom CTR construction; sound under standard PRF assumption. |
 | Areion-SoEM-512 in CTR mode | `Cipher.Areion512` (`"areion512"`) | 64 B | 16 B | Areion-SoEM-512 PRF. Custom CTR construction; sound under standard PRF assumption. |
-| SipHash-2-4 in CTR mode | `Cipher.SipHash24` (`"siphash24"`) | 16 B | 16 B | `github.com/dchest/siphash` PRF. Custom CTR construction; sound under standard PRF assumption. |
-| AES-128-CTR | `Cipher.Aes128Ctr` (`"aescmac"`) | 16 B | 16 B | libitb stdlib path with AES-NI. |
 | BLAKE2b-256 in CTR mode | `Cipher.Blake2b256` (`"blake2b256"`) | 32 B | 16 B | BLAKE2b-256 PRF. Custom CTR construction; sound under standard PRF assumption. |
 | BLAKE2b-512 in CTR mode | `Cipher.Blake2b512` (`"blake2b512"`) | 32 B | 16 B | BLAKE2b-512 PRF. Custom CTR construction; sound under standard PRF assumption. |
 | BLAKE2s in CTR mode | `Cipher.Blake2s` (`"blake2s"`) | 32 B | 16 B | BLAKE2s PRF. Custom CTR construction; sound under standard PRF assumption. |
 | BLAKE3 in CTR mode | `Cipher.Blake3` (`"blake3"`) | 32 B | 16 B | BLAKE3 PRF. Custom CTR construction; sound under standard PRF assumption. |
+| AES-128-CTR | `Cipher.Aes128Ctr` (`"aescmac"`) | 16 B | 16 B | libitb stdlib path with AES-NI. |
+| SipHash-2-4 in CTR mode | `Cipher.SipHash24` (`"siphash24"`) | 16 B | 16 B | `github.com/dchest/siphash` PRF. Custom CTR construction; sound under standard PRF assumption. |
 | ChaCha20 (RFC 8439) | `Cipher.ChaCha20` (`"chacha20"`) | 32 B | 12 B | `golang.org/x/crypto/chacha20`. No AES-NI dependency. |
 
 The SipHash-CTR construction:
@@ -69,7 +69,7 @@ dotnet run --project Itb.Eitb -c Release
 dotnet run --project Itb.Eitb -c Release -- --help
 ```
 
-Below: `using Itb;` plus `using Itb.Wrapper;` (with `OuterCipher = Itb.Wrapper.Cipher`) is assumed. The `cipher` variable holds one of `Cipher.Areion256` / `Cipher.Areion512` / `Cipher.SipHash24` / `Cipher.Aes128Ctr` / `Cipher.Blake2b256` / `Cipher.Blake2b512` / `Cipher.Blake2s` / `Cipher.Blake3` / `Cipher.ChaCha20`.
+Below: `using Itb;` plus `using Itb.Wrapper;` (with `OuterCipher = Itb.Wrapper.Cipher`) is assumed.
 
 ### 1. Streaming AEAD Easy (MAC Authenticated, IO-Driven)
 
@@ -79,6 +79,7 @@ ITB Call: `Encryptor.EncryptStreamAuth` / `DecryptStreamAuth`. Wrap shape: `Wrap
 using var enc = new Encryptor("areion512", 1024, "hmac-blake3", "single");
 enc.SetNonceBits(512); enc.SetBarrierFill(4);
 enc.SetBitSoup(1); enc.SetLockSoup(1);
+enc.SetLockBatch(1);  // Recommended under the PRF assumption — the performance Lock Soup mode; symmetric, set on both sides.
 
 var outerKey = Wrapper.GenerateKey(cipher);
 
@@ -134,6 +135,7 @@ The "Alternative — User-Driven Loop" pattern: each chunk is one independent `e
 using var enc = new Encryptor("areion512", 1024, mac: null, "single");
 enc.SetNonceBits(512); enc.SetBarrierFill(4);
 enc.SetBitSoup(1); enc.SetLockSoup(1);
+enc.SetLockBatch(1);  // Recommended under the PRF assumption — the performance Lock Soup mode; symmetric, set on both sides.
 
 var outerKey = Wrapper.GenerateKey(cipher);
 using var ww = new WrapStreamWriter(cipher, outerKey);
@@ -193,12 +195,13 @@ var wire = wireBuf.ToArray();
 
 ### 5. Easy: Areion-SoEM-512 (No MAC, Single Message)
 
-ITB Call: `enc.Encrypt(plaintext)` returns one ITB blob. Wrap shape: `Wrap` — `nonce || ks-XOR(blob)`. The `WrapInPlace` / `UnwrapInPlace` variant is shown — mutates the caller's `Span<byte>` in place to skip the steady-state allocation.
+ITB Call: `enc.Encrypt(plaintext)` returns one ITB blob. Wrap shape: `Wrap` — `nonce || ks-XOR(blob)`. The `WrapInPlace` / `UnwrapInPlace` variant is shown — mutates the caller's `Span<byte>` in place to skip the output-buffer allocation.
 
 ```csharp
 using var enc = new Encryptor("areion512", 2048, mac: null, "single");
 enc.SetNonceBits(512); enc.SetBarrierFill(4);
 enc.SetBitSoup(1); enc.SetLockSoup(1);
+enc.SetLockBatch(1);  // Recommended under the PRF assumption — the performance Lock Soup mode; symmetric, set on both sides.
 
 var encrypted = enc.Encrypt(plaintext);
 
@@ -224,6 +227,7 @@ ITB Call: `enc.EncryptAuth` / `enc.DecryptAuth`. Wrap shape: `Wrap` (or `WrapInP
 using var enc = new Encryptor("areion512", 2048, "hmac-blake3", "single");
 enc.SetNonceBits(512); enc.SetBarrierFill(4);
 enc.SetBitSoup(1); enc.SetLockSoup(1);
+enc.SetLockBatch(1);  // Recommended under the PRF assumption — the performance Lock Soup mode; symmetric, set on both sides.
 
 var encrypted = enc.EncryptAuth(plaintext);
 
@@ -284,32 +288,25 @@ var pt = Itb.Cipher.DecryptAuth(seeds[0], seeds[1], seeds[2], mac, recoveredSpan
 Every example × cipher combination round-trips against random plaintext (1 KiB for Single Message, 64 KiB for streaming) with sha256 byte-equality. Sample run:
 
 ```
+[PASS] aead-easy-io               + areion256   pt=65536 wire=90208
+[PASS] aead-easy-io               + areion512   pt=65536 wire=90208
+[PASS] aead-easy-io               + blake2b256   pt=65536 wire=90208
+[PASS] aead-easy-io               + blake2b512   pt=65536 wire=90208
+[PASS] aead-easy-io               + blake2s    pt=65536 wire=90208
+[PASS] aead-easy-io               + blake3     pt=65536 wire=90208
 [PASS] aead-easy-io               + aescmac    pt=65536 wire=90208
+[PASS] aead-easy-io               + siphash24   pt=65536 wire=90208
 [PASS] aead-easy-io               + chacha20   pt=65536 wire=90204
-[PASS] aead-easy-io               + siphash24  pt=65536 wire=90208
-[PASS] aead-lowlevel-io           + aescmac    pt=65536 wire=90208
-[PASS] aead-lowlevel-io           + chacha20   pt=65536 wire=90204
-[PASS] aead-lowlevel-io           + siphash24  pt=65536 wire=90208
-[PASS] noaead-easy-userloop       + aescmac    pt=65536 wire=90192
-[PASS] noaead-easy-userloop       + chacha20   pt=65536 wire=90188
-[PASS] noaead-easy-userloop       + siphash24  pt=65536 wire=90192
-[PASS] noaead-lowlevel-userloop   + aescmac    pt=65536 wire=90192
-[PASS] noaead-lowlevel-userloop   + chacha20   pt=65536 wire=90188
-[PASS] noaead-lowlevel-userloop   + siphash24  pt=65536 wire=90192
-[PASS] message-easy-nomac         + aescmac    pt=1024 wire=4316
-[PASS] message-easy-nomac         + chacha20   pt=1024 wire=4312
-[PASS] message-easy-nomac         + siphash24  pt=1024 wire=4316
-[PASS] message-easy-auth          + aescmac    pt=1024 wire=8276
-[PASS] message-easy-auth          + chacha20   pt=1024 wire=8272
-[PASS] message-easy-auth          + siphash24  pt=1024 wire=8276
-[PASS] message-lowlevel-nomac     + aescmac    pt=1024 wire=4316
-[PASS] message-lowlevel-nomac     + chacha20   pt=1024 wire=4312
-[PASS] message-lowlevel-nomac     + siphash24  pt=1024 wire=4316
+...
+[PASS] message-lowlevel-auth      + areion256   pt=1024 wire=8276
+[PASS] message-lowlevel-auth      + areion512   pt=1024 wire=8276
+[PASS] message-lowlevel-auth      + blake2b256   pt=1024 wire=8276
+[PASS] message-lowlevel-auth      + blake2b512   pt=1024 wire=8276
+[PASS] message-lowlevel-auth      + blake2s    pt=1024 wire=8276
+[PASS] message-lowlevel-auth      + blake3     pt=1024 wire=8276
 [PASS] message-lowlevel-auth      + aescmac    pt=1024 wire=8276
+[PASS] message-lowlevel-auth      + siphash24   pt=1024 wire=8276
 [PASS] message-lowlevel-auth      + chacha20   pt=1024 wire=8272
-[PASS] message-lowlevel-auth      + siphash24  pt=1024 wire=8276
-
-=== Summary: 24 PASS, 0 FAIL ===
 ```
 
 The wire-byte difference between cipher columns is exactly the per-stream nonce-size delta (16 vs 12 vs 16 bytes); the User-Driven Loop variants additionally include 4 bytes of keystream-XORed length prefix per chunk.

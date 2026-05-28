@@ -165,6 +165,17 @@ public static class Library
     }
 
     /// <summary>
+    /// Process-global Lock Soup per-chunk PRF batching mode (0 = off,
+    /// 1 = on). Inert unless Lock Soup is engaged. Same lifecycle rules
+    /// as <see cref="LockSoup"/>.
+    /// </summary>
+    public static int LockBatch
+    {
+        get => ItbNative.ITB_GetLockBatch();
+        set => ItbException.Check(ItbNative.ITB_SetLockBatch(value));
+    }
+
+    /// <summary>
     /// Maximum number of worker threads libitb uses for chunk-level
     /// parallelism. 0 means "use Channels (8) workers". Affects all
     /// future Encrypt / Decrypt calls process-wide.

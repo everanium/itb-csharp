@@ -11,11 +11,10 @@ decryption surface exposed by the C# / .NET binding through a
 subcommand dispatcher:
 
 * `dotnet run -- single` — Single Ouroboros (mode=1, 3 seeds + optional
-  dedicated lockSeed). Walks the nine PRF-grade primitives plus one
+  dedicated lockSeed). Walks PRF-grade primitives plus one
   mixed-primitive variant.
 * `dotnet run -- triple` — Triple Ouroboros (mode=3, 7 seeds + optional
-  dedicated lockSeed). Same nine + one mixed grid as the single
-  subcommand.
+  dedicated lockSeed).
 
 Both passes pin **1024-bit ITB key width** and **16 MiB CSPRNG-filled
 payload**, run four ops per case (`Encrypt`, `Decrypt`, `EncryptAuth`,
@@ -78,6 +77,7 @@ under-report throughput.
 | Variable             | Default | Purpose |
 |----------------------|---------|---------|
 | `ITB_NONCE_BITS`     | `128`   | Process-wide nonce width — `128`, `256`, or `512`. Maps to `Library.NonceBits` before any `Encryptor` is constructed. Mirrors `ITB_NONCE_BITS` from `bitbyte_test.go`. |
+| `ITB_LOCKBATCH`      | unset   | Non-empty / non-`0` enables Lock Batch (performance Lock Soup mode); set with `ITB_LOCKSEED`. Every encryptor additionally calls `Encryptor.SetLockBatch(1)`. Inert unless Lock Soup is engaged via `ITB_LOCKSEED`. |
 | `ITB_LOCKSEED`       | unset   | When set to a non-empty / non-`0` value, every encryptor in the run calls `Encryptor.SetLockSeed(1)` AND `Library.LockSoup` is set to `1` at start. Easy Mode auto-couples `SetBitSoup(1)` + `SetLockSoup(1)`, so no separate flags are needed. The mixed-primitive cases attach a dedicated lockSeed primitive (via `primL`) only under this flag; otherwise `primL` is `null` so the no-LockSeed bench arm measures the plain mixed-primitive cost. |
 | `ITB_BENCH_FILTER`   | unset   | Case-insensitive substring filter on bench-case names — only cases whose name contains the filter are run. Useful when iterating on one primitive / op. |
 | `ITB_BENCH_MIN_SEC`  | `5.0`   | Minimum measured wall-clock seconds per case. The runner keeps doubling iteration count until the measured batch reaches the threshold, mirroring Go's `-benchtime=Ns`. The 5-second default absorbs the cold-cache / warm-up transient that distorts shorter measurement windows on the 16 MiB encrypt / decrypt path. |
@@ -94,9 +94,12 @@ dotnet run --project Itb.Bench -c Release -- single
 ```
 
 512-bit nonces with the dedicated lockSeed channel + auto-coupled
-overlay:
+overlay (the `ITB_LOCKBATCH=1` form selects the Lock Batch performance
+variant of Lock Soup):
 
 ```bash
+ITB_NONCE_BITS=512 ITB_LOCKSEED=1 ITB_LOCKBATCH=1 \
+    dotnet run --project Itb.Bench -c Release -- triple
 ITB_NONCE_BITS=512 ITB_LOCKSEED=1 \
     dotnet run --project Itb.Bench -c Release -- triple
 ```
@@ -150,8 +153,8 @@ call path.
 
 ## Expected runtime
 
-At the default `ITB_BENCH_MIN_SEC=5`, each pass walks 40 cases (9
-single-primitive + 1 mixed × 4 ops) and converges per case in 5–15
+At the default `ITB_BENCH_MIN_SEC=5`, each pass walks 40 cases (
+single-primitives + 1 mixed × 4 ops) and converges per case in 5–15
 wall-clock seconds depending on the primitive's per-byte cost. A
 full pass therefore lands at 5–10 minutes; the four canonical
 passes (Single ±LockSeed, Triple ±LockSeed) fill BENCH.md in

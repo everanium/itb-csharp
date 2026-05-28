@@ -151,9 +151,9 @@ public sealed class Encryptor : IDisposable
     /// </summary>
     /// <param name="primitive">A canonical hash name from
     /// <see cref="Library.ListHashes"/> — one of <c>areion256</c>,
-    /// <c>areion512</c>, <c>siphash24</c>, <c>aescmac</c>,
-    /// <c>blake2b256</c>, <c>blake2b512</c>, <c>blake2s</c>,
-    /// <c>blake3</c>, <c>chacha20</c>.</param>
+    /// <c>areion512</c>, <c>blake2b256</c>, <c>blake2b512</c>,
+    /// <c>blake2s</c>, <c>blake3</c>, <c>aescmac</c>,
+    /// <c>siphash24</c>, <c>chacha20</c>.</param>
     /// <param name="keyBits">ITB key width in bits — 512, 1024, or
     /// 2048; must be a multiple of the primitive's native hash
     /// width.</param>
@@ -807,6 +807,16 @@ public sealed class Encryptor : IDisposable
     {
         ThrowIfClosed();
         ItbException.Check(ItbNative.ITB_Easy_SetLockSoup(_handle, mode));
+    }
+
+    /// <summary>
+    /// 0 = off (default); non-zero = on. Per-chunk PRF batching for the
+    /// Lock Soup overlay; inert unless Lock Soup is engaged.
+    /// </summary>
+    public void SetLockBatch(int mode)
+    {
+        ThrowIfClosed();
+        ItbException.Check(ItbNative.ITB_Easy_SetLockBatch(_handle, mode));
     }
 
     /// <summary>

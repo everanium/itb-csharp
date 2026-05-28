@@ -61,6 +61,7 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("environment:");
         Console.WriteLine("  ITB_NONCE_BITS     128 / 256 / 512  (default 128)");
+        Console.WriteLine("  ITB_LOCKBATCH      non-empty / non-0 enables Lock Batch (performance Lock Soup mode); set with ITB_LOCKSEED");
         Console.WriteLine("  ITB_LOCKSEED       non-empty / non-0 enables dedicated lockSeed (default off)");
         Console.WriteLine("  ITB_BENCH_FILTER   substring match on bench-case name (case-insensitive)");
         Console.WriteLine("  ITB_BENCH_MIN_SEC  minimum measured seconds per case (default 5.0)");

@@ -30,26 +30,26 @@ public sealed class TestEasyPersistence
     {
         ("areion256", 256),
         ("areion512", 512),
-        ("siphash24", 128),
-        ("aescmac", 128),
         ("blake2b256", 256),
         ("blake2b512", 512),
         ("blake2s", 256),
         ("blake3", 256),
+        ("aescmac", 128),
+        ("siphash24", 128),
         ("chacha20", 256),
     };
 
     private static readonly Dictionary<string, int> ExpectedPRFKeyLen = new()
     {
-        ["siphash24"] = 0,
-        ["aescmac"] = 16,
         ["areion256"] = 32,
+        ["areion512"] = 64,
         ["blake2b256"] = 32,
+        ["blake2b512"] = 64,
         ["blake2s"] = 32,
         ["blake3"] = 32,
+        ["aescmac"] = 16,
+        ["siphash24"] = 0,
         ["chacha20"] = 32,
-        ["areion512"] = 64,
-        ["blake2b512"] = 64,
     };
 
     private static int[] KeyBitsFor(int width) =>

@@ -3,8 +3,7 @@
 // C#-idiomatic surface over the 12 ITB_Wrap* / ITB_Unwrap* /
 // ITB_WrapStream* / ITB_UnwrapStream* / ITB_WrapperKeySize /
 // ITB_WrapperNonceSize exports in cmd/cshared/main.go. Wraps an ITB
-// ciphertext under one of three outer keystream ciphers
-// (AES-128-CTR / ChaCha20 / SipHash-2-4 in CTR mode) so the on-wire
+// ciphertext under one of outer keystream ciphers, so the on-wire
 // bytes carry no ITB-specific format pattern (W / H / container
 // layout for Non-AEAD; 32-byte streamID prefix + per-chunk metadata
 // for Streaming AEAD). The wrap exists for format-deniability
@@ -19,7 +18,7 @@
 //     byte[] recovered = Wrapper.Unwrap(Cipher.Aes128Ctr, key, wire);
 //     Debug.Assert(recovered.SequenceEqual(blob));
 //
-// Single Message in-place mutation (zero-allocation steady state):
+// Single Message in-place mutation (no output-buffer allocation):
 //
 //     Span<byte> mutable = blob.ToArray();
 //     byte[] nonce = Wrapper.WrapInPlace(Cipher.ChaCha20, key, mutable);
@@ -46,27 +45,11 @@ namespace Itb.Wrapper;
 
 /// <summary>
 /// Outer keystream cipher selected per wrap session. Each variant
-/// maps to one of the nine cipher-name strings the underlying FFI
-/// accepts: <c>"aescmac"</c> / <c>"chacha20"</c> / <c>"siphash24"</c> /
-/// <c>"areion256"</c> / <c>"areion512"</c> / <c>"blake2b256"</c> /
-/// <c>"blake2b512"</c> / <c>"blake2s"</c> / <c>"blake3"</c>. The Go-side
-/// constants are <c>wrapper.CipherAES128CTR</c> /
-/// <c>wrapper.CipherChaCha20</c> / <c>wrapper.CipherSipHash24</c> and the
-/// matching <c>wrapper.Cipher*</c> values for the remaining six.
+/// maps to one of cipher-name strings the underlying FFI
+/// accepts. The Go-side constants are <c>wrapper.Cipher*</c>.
 /// </summary>
 public enum Cipher
 {
-    /// <summary>AES-128-CTR — 16-byte key, 16-byte nonce, AES-NI
-    /// accelerated on the libitb side via the Go stdlib
-    /// <c>crypto/cipher.NewCTR</c>.</summary>
-    Aes128Ctr,
-    /// <summary>ChaCha20 (RFC 8439) — 32-byte key, 12-byte nonce. No
-    /// AES-NI dependency.</summary>
-    ChaCha20,
-    /// <summary>SipHash-2-4 in CTR mode — 16-byte key, 16-byte nonce.
-    /// Custom CTR construction over the SipHash-2-4 PRF; sound under
-    /// the standard PRF assumption that justifies AES-CTR.</summary>
-    SipHash24,
     /// <summary>Areion-SoEM-256 in CTR mode — 32-byte key, 16-byte
     /// nonce. Custom CTR construction over the Areion-SoEM-256 PRF;
     /// sound under the standard PRF assumption.</summary>
@@ -91,6 +74,17 @@ public enum Cipher
     /// Custom CTR construction over the BLAKE3 PRF; sound under the
     /// standard PRF assumption.</summary>
     Blake3,
+    /// <summary>AES-128-CTR — 16-byte key, 16-byte nonce, AES-NI
+    /// accelerated on the libitb side via the Go stdlib
+    /// <c>crypto/cipher.NewCTR</c>.</summary>
+    Aes128Ctr,
+    /// <summary>SipHash-2-4 in CTR mode — 16-byte key, 16-byte nonce.
+    /// Custom CTR construction over the SipHash-2-4 PRF; sound under
+    /// the standard PRF assumption that justifies AES-CTR.</summary>
+    SipHash24,
+    /// <summary>ChaCha20 (RFC 8439) — 32-byte key, 12-byte nonce. No
+    /// AES-NI dependency.</summary>
+    ChaCha20,
 }
 
 /// <summary>
@@ -103,15 +97,15 @@ public static class CipherExtensions
     /// point.</summary>
     public static string ToFfiName(this Cipher cipher) => cipher switch
     {
-        Cipher.Aes128Ctr => "aescmac",
-        Cipher.ChaCha20 => "chacha20",
-        Cipher.SipHash24 => "siphash24",
         Cipher.Areion256 => "areion256",
         Cipher.Areion512 => "areion512",
         Cipher.Blake2b256 => "blake2b256",
         Cipher.Blake2b512 => "blake2b512",
         Cipher.Blake2s => "blake2s",
         Cipher.Blake3 => "blake3",
+        Cipher.Aes128Ctr => "aescmac",
+        Cipher.SipHash24 => "siphash24",
+        Cipher.ChaCha20 => "chacha20",
         _ => throw new ArgumentOutOfRangeException(nameof(cipher), cipher, "unknown wrapper cipher"),
     };
 }
@@ -189,24 +183,24 @@ public sealed class WrapperHandleClosedException : ItbException
 /// </summary>
 public static class Wrapper
 {
-    /// <summary>Iteration order over all nine supported outer
+    /// <summary>Iteration order over all supported outer
     /// ciphers.</summary>
     public static readonly Cipher[] AllCiphers = new[]
     {
         Cipher.Areion256,
         Cipher.Areion512,
-        Cipher.SipHash24,
-        Cipher.Aes128Ctr,
         Cipher.Blake2b256,
         Cipher.Blake2b512,
         Cipher.Blake2s,
         Cipher.Blake3,
+        Cipher.Aes128Ctr,
+        Cipher.SipHash24,
         Cipher.ChaCha20,
     };
 
     /// <summary>
     /// Returns the byte length of the keystream-cipher key for the
-    /// named outer cipher (16 / 32 / 16 for AES / ChaCha / SipHash).
+    /// named outer cipher (16 / 32 / 64).
     /// </summary>
     public static int KeySize(Cipher cipher)
     {
@@ -221,7 +215,7 @@ public static class Wrapper
 
     /// <summary>
     /// Returns the on-wire nonce length the named outer cipher emits
-    /// per stream (16 / 12 / 16 for AES / ChaCha / SipHash).
+    /// per stream (12 for ChaCha20; 16 for other outer ciphers).
     /// </summary>
     public static int NonceSize(Cipher cipher)
     {
@@ -235,8 +229,7 @@ public static class Wrapper
     }
 
     /// <summary>
-    /// Returns a fresh CSPRNG key sized for the named outer cipher
-    /// (16 / 32 / 16 bytes for AES / ChaCha / SipHash). Uses
+    /// Returns a fresh CSPRNG key sized for the named outer cipher.
     /// <see cref="RandomNumberGenerator.Fill(Span{byte})"/>.
     /// </summary>
     public static byte[] GenerateKey(Cipher cipher)
@@ -258,8 +251,7 @@ public static class Wrapper
     /// <remarks>
     /// <paramref name="master"/> must be at least 32 bytes (the
     /// wrapper's uniform security floor); the returned key has length
-    /// <c>KeySize(cipher)</c> (16 / 32 / 16 bytes for AES / ChaCha /
-    /// SipHash). Throws <see cref="InvalidKeyException"/> when
+    /// <c>KeySize(cipher)</c>. Throws <see cref="InvalidKeyException"/> when
     /// <paramref name="master"/> is shorter than 32 bytes.
     /// </remarks>
     public static unsafe byte[] DeriveKey(Cipher cipher, ReadOnlySpan<byte> master)

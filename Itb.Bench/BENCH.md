@@ -23,10 +23,16 @@ The harness lives in this directory; reproduction:
 cd bindings/csharp
 dotnet build -c Release
 ITB_BENCH_MIN_SEC=5 dotnet run --project Itb.Bench -c Release -- single
+ITB_BENCH_MIN_SEC=5 ITB_LOCKSEED=1 ITB_LOCKBATCH=1 dotnet run --project Itb.Bench -c Release -- single
 ITB_BENCH_MIN_SEC=5 ITB_LOCKSEED=1 dotnet run --project Itb.Bench -c Release -- single
 ITB_BENCH_MIN_SEC=5 dotnet run --project Itb.Bench -c Release -- triple
+ITB_BENCH_MIN_SEC=5 ITB_LOCKSEED=1 ITB_LOCKBATCH=1 dotnet run --project Itb.Bench -c Release -- triple
 ITB_BENCH_MIN_SEC=5 ITB_LOCKSEED=1 dotnet run --project Itb.Bench -c Release -- triple
 ```
+
+The `ITB_LOCKSEED=1 ITB_LOCKBATCH=1` lines select the Lock Batch
+performance variant of Lock Soup (the preferred arm); the plain
+`ITB_LOCKSEED=1` lines retain the baseline Lock Soup arm.
 
 The default measurement window is 5 seconds per case
 (`ITB_BENCH_MIN_SEC=5`), wide enough to absorb the cold-cache /
@@ -67,12 +73,12 @@ Recorded on Intel Core i7-11700K (Rocket Lake, AVX-512 + VAES,
 |---|---|---|---|---|---|---|
 | **Areion-SoEM-256** | 256 | PRF | 71 | 175 | 170 | 257 |
 | **Areion-SoEM-512** | 512 | PRF | 205 | 302 | 187 | 278 |
-| **SipHash-2-4** | 128 | PRF | 152 | 196 | 144 | 189 |
-| **AES-CMAC** | 128 | PRF | 190 | 265 | 174 | 246 |
-| **BLAKE2b-512** | 512 | PRF | 138 | 168 | 127 | 163 |
 | **BLAKE2b-256** | 256 | PRF | 96 | 111 | 91 | 107 |
+| **BLAKE2b-512** | 512 | PRF | 138 | 168 | 127 | 163 |
 | **BLAKE2s** | 256 | PRF | 101 | 118 | 94 | 117 |
 | **BLAKE3** | 256 | PRF | 124 | 149 | 118 | 144 |
+| **AES-CMAC** | 128 | PRF | 190 | 265 | 174 | 246 |
+| **SipHash-2-4** | 128 | PRF | 152 | 196 | 144 | 189 |
 | **ChaCha20** | 256 | PRF | 111 | 132 | 107 | 125 |
 | **Mixed** | 256 | PRF | 154 | 197 | 145 | 186 |
 
@@ -82,14 +88,53 @@ Recorded on Intel Core i7-11700K (Rocket Lake, AVX-512 + VAES,
 |---|---|---|---|---|---|---|
 | **Areion-SoEM-256** | 256 | PRF | 259 | 315 | 236 | 297 |
 | **Areion-SoEM-512** | 512 | PRF | 275 | 323 | 248 | 311 |
-| **SipHash-2-4** | 128 | PRF | 187 | 207 | 173 | 200 |
-| **AES-CMAC** | 128 | PRF | 248 | 288 | 190 | 273 |
-| **BLAKE2b-512** | 512 | PRF | 162 | 176 | 151 | 169 |
 | **BLAKE2b-256** | 256 | PRF | 104 | 111 | 99 | 108 |
+| **BLAKE2b-512** | 512 | PRF | 162 | 176 | 151 | 169 |
 | **BLAKE2s** | 256 | PRF | 115 | 122 | 109 | 120 |
 | **BLAKE3** | 256 | PRF | 142 | 154 | 134 | 149 |
+| **AES-CMAC** | 128 | PRF | 248 | 288 | 190 | 273 |
+| **SipHash-2-4** | 128 | PRF | 187 | 207 | 173 | 200 |
 | **ChaCha20** | 256 | PRF | 125 | 134 | 118 | 130 |
 | **Mixed** | 256 | PRF | 140 | 152 | 132 | 143 |
+
+## Intel Core i7-11700K (16 HT, native Linux, c-shared mode, Lock Seed + Lock Batch mode)
+
+The Lock Batch performance variant (`ITB_LOCKSEED=1 ITB_LOCKBATCH=1` /
+`Encryptor.SetLockBatch(1)`) batches the per-chunk Lock Soup overlay
+derivation, reducing per-chunk PRF invocations without affecting
+security under the PRF assumption. Numbers below run with
+`ITB_LOCKSEED=1 ITB_LOCKBATCH=1`, default nonce, 16 MiB payload,
+`ITB_BENCH_MIN_SEC=5`.
+
+### ITB Single 1024-bit (security: P × 2^1024)
+
+| Hash | Width | Crypto | Encrypt | Decrypt | Encrypt + MAC | Decrypt + MAC |
+|---|---|---|---|---|---|---|
+| **Areion-SoEM-256** | 256 | PRF | 97 | 123 | 99 | 122 |
+| **Areion-SoEM-512** | 512 | PRF | 114 | 140 | 109 | 136 |
+| **BLAKE2b-256** | 256 | PRF | 63 | 71 | 62 | 70 |
+| **BLAKE2b-512** | 512 | PRF | 88 | 104 | 87 | 102 |
+| **BLAKE2s** | 256 | PRF | 67 | 74 | 65 | 73 |
+| **BLAKE3** | 256 | PRF | 72 | 81 | 70 | 79 |
+| **AES-CMAC** | 128 | PRF | 91 | 108 | 89 | 105 |
+| **SipHash-2-4** | 128 | PRF | 81 | 93 | 79 | 92 |
+| **ChaCha20** | 256 | PRF | 68 | 76 | 66 | 72 |
+| **Mixed** | 256 | PRF | 48 | 52 | 47 | 53 |
+
+### ITB Triple 1024-bit (security: P × 2^(3×1024) = P × 2^3072)
+
+| Hash | Width | Crypto | Encrypt | Decrypt | Encrypt + MAC | Decrypt + MAC |
+|---|---|---|---|---|---|---|
+| **Areion-SoEM-256** | 256 | PRF | 153 | 194 | 162 | 192 |
+| **Areion-SoEM-512** | 512 | PRF | 190 | 222 | 178 | 216 |
+| **BLAKE2b-256** | 256 | PRF | 82 | 86 | 79 | 85 |
+| **BLAKE2b-512** | 512 | PRF | 128 | 142 | 122 | 137 |
+| **BLAKE2s** | 256 | PRF | 87 | 93 | 85 | 92 |
+| **BLAKE3** | 256 | PRF | 98 | 105 | 95 | 102 |
+| **AES-CMAC** | 128 | PRF | 151 | 167 | 141 | 161 |
+| **SipHash-2-4** | 128 | PRF | 123 | 136 | 117 | 132 |
+| **ChaCha20** | 256 | PRF | 88 | 93 | 86 | 92 |
+| **Mixed** | 256 | PRF | 44 | 47 | 39 | 45 |
 
 ## Intel Core i7-11700K (16 HT, native Linux, c-shared mode, LockSeed mode)
 
@@ -103,12 +148,12 @@ on-direction. Numbers below run with all three overlays active.
 |---|---|---|---|---|---|---|
 | **Areion-SoEM-256** | 256 | PRF | 60 | 72 | 62 | 71 |
 | **Areion-SoEM-512** | 512 | PRF | 52 | 58 | 50 | 57 |
-| **SipHash-2-4** | 128 | PRF | 69 | 76 | 64 | 72 |
-| **AES-CMAC** | 128 | PRF | 73 | 84 | 72 | 83 |
-| **BLAKE2b-512** | 512 | PRF | 46 | 49 | 45 | 49 |
 | **BLAKE2b-256** | 256 | PRF | 41 | 45 | 40 | 44 |
+| **BLAKE2b-512** | 512 | PRF | 46 | 49 | 45 | 49 |
 | **BLAKE2s** | 256 | PRF | 43 | 46 | 42 | 46 |
 | **BLAKE3** | 256 | PRF | 43 | 46 | 42 | 45 |
+| **AES-CMAC** | 128 | PRF | 73 | 84 | 72 | 83 |
+| **SipHash-2-4** | 128 | PRF | 69 | 76 | 64 | 72 |
 | **ChaCha20** | 256 | PRF | 45 | 48 | 36 | 42 |
 | **Mixed** | 256 | PRF | 45 | 48 | 43 | 47 |
 
@@ -118,12 +163,12 @@ on-direction. Numbers below run with all three overlays active.
 |---|---|---|---|---|---|---|
 | **Areion-SoEM-256** | 256 | PRF | 59 | 64 | 60 | 62 |
 | **Areion-SoEM-512** | 512 | PRF | 52 | 53 | 50 | 53 |
-| **SipHash-2-4** | 128 | PRF | 69 | 73 | 67 | 72 |
-| **AES-CMAC** | 128 | PRF | 76 | 68 | 67 | 72 |
-| **BLAKE2b-512** | 512 | PRF | 44 | 46 | 43 | 45 |
 | **BLAKE2b-256** | 256 | PRF | 39 | 41 | 40 | 41 |
+| **BLAKE2b-512** | 512 | PRF | 44 | 46 | 43 | 45 |
 | **BLAKE2s** | 256 | PRF | 43 | 43 | 42 | 43 |
 | **BLAKE3** | 256 | PRF | 41 | 42 | 40 | 41 |
+| **AES-CMAC** | 128 | PRF | 76 | 68 | 67 | 72 |
+| **SipHash-2-4** | 128 | PRF | 69 | 73 | 67 | 72 |
 | **ChaCha20** | 256 | PRF | 46 | 47 | 38 | 40 |
 | **Mixed** | 256 | PRF | 34 | 42 | 38 | 41 |
 

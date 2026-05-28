@@ -280,6 +280,14 @@ public class TestNonceSizes
     }
 
     [Fact]
+    public void TestLockBatchRoundtrip()
+    {
+        using var snap = GlobalStateSnapshot.Capture();
+        Library.LockBatch = 1;
+        Assert.Equal(1, Library.LockBatch);
+    }
+
+    [Fact]
     public void TestMaxWorkersRoundtrip()
     {
         using var snap = GlobalStateSnapshot.Capture();
