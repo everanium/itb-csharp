@@ -468,11 +468,9 @@ enc.SetBitSoup(1);        // optional bit-level split ("bit-soup"; default: 0 = 
 enc.SetLockSoup(1);       // optional Insane Interlocked Mode: per-chunk PRF-keyed
                           // bit-permutation overlay on top of bit-soup;
                           // auto-enabled for Single Ouroboros if SetBitSoup(1) is on
-enc.SetLockBatch(1);      // Lock Batch is the performance Lock Soup mode: recommended
-                          // in every case when the configured hash is PRF-grade, since
-                          // security is preserved under the PRF assumption while
-                          // throughput rises. Symmetric option — set identically on
-                          // the encrypt and decrypt sides.
+enc.SetLockBatch(1);      // Recommended under the PRF assumption,
+                          // the performance Lock Soup mode.
+                          // Symmetric, set on both sides.
 
 // enc.SetLockSeed(1);    // optional dedicated lockSeed for the bit-permutation
                           // derivation channel — separates that PRF's keying
@@ -544,7 +542,9 @@ dec.SetNonceBits(512);
 dec.SetBarrierFill(4);
 dec.SetBitSoup(1);
 dec.SetLockSoup(1);
-dec.SetLockBatch(1);      // Recommended under the PRF assumption — the performance Lock Soup mode; symmetric, set on both sides.
+dec.SetLockBatch(1);      // Recommended under the PRF assumption,
+                          // the performance Lock Soup mode.
+                          // Symmetric, set on both sides.
 
 // Restore PRF keys, seed components, MAC key, and the per-instance
 // configuration overrides (NonceBits / BarrierFill / BitSoup /
