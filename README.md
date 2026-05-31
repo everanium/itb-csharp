@@ -198,7 +198,7 @@ if (!File.Exists(SRC_PATH) || new FileInfo(SRC_PATH).Length != 64L * 1024 * 1024
 
 // Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
-// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master);
+// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master); CryptographicOperations.ZeroMemory(master);
 
 using var enc = new Encryptor("areion512", 1024, "hmac-blake3", "single");
 
@@ -335,7 +335,7 @@ using var mac = new Mac("hmac-blake3", macKey);
 
 // Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
-// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master);
+// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master); CryptographicOperations.ZeroMemory(master);
 
 // Sender — encrypt to an intermediate file, then wrap end-to-end.
 using (var fin = File.OpenRead(SRC_PATH))
@@ -448,7 +448,7 @@ using OuterCipher = Itb.Wrapper.Cipher;
 
 // Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
-// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master);
+// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master); CryptographicOperations.ZeroMemory(master);
 
 // Per-instance configuration — mutates only this encryptor's
 // Config. Two encryptors built side-by-side carry independent
@@ -591,7 +591,7 @@ using OuterCipher = Itb.Wrapper.Cipher;
 
 // Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
-// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master);
+// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master); CryptographicOperations.ZeroMemory(master);
 
 // Per-slot primitive selection (Single Ouroboros, 3 + 1 slots).
 // Every name must share the same native hash width — mixing widths
@@ -682,7 +682,7 @@ using OuterCipher = Itb.Wrapper.Cipher;
 
 // Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
-// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master);
+// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master); CryptographicOperations.ZeroMemory(master);
 
 // mode: "triple" selects Triple Ouroboros. All other constructor
 // arguments behave identically to the Single (mode: "single") case
@@ -777,7 +777,7 @@ using var mac = new Mac("hmac-blake3", macKey);
 
 // Outer cipher key - preferred surface for HKDF / ML-KEM / key-rotation policy in user-side application. ITB Inner seeds + PRF key keep as CSPRNG derived.
 var outerKey = Wrapper.GenerateKey(OuterCipher.Aes128Ctr);
-// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master);
+// var outerKey = Wrapper.DeriveKey(OuterCipher.Aes128Ctr, master); CryptographicOperations.ZeroMemory(master);
 
 var plaintext = "any text or binary data - including 0x00 bytes"u8.ToArray();
 
