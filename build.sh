@@ -28,9 +28,7 @@ go build -trimpath "${TAGS[@]}" -buildmode=c-shared \
     -o dist/linux-amd64/libitb.so ./cmd/cshared
 
 cd "$REPO_ROOT/bindings/csharp"
-echo "==> cleaning previous .NET binding build artefacts (dotnet clean)"
-dotnet clean -c Release --verbosity quiet 2>/dev/null || true
 echo "==> building C# / .NET binding (dotnet build -c Release)"
-dotnet build -c Release
+dotnet build Itb.sln -c Release
 
-echo "==> ready: dotnet test -c Release"
+echo "==> ready: ./run_tests.sh"

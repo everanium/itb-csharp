@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
 # run_tests.sh -- one-step test runner for the C# / .NET binding.
-# Verifies libitb.so is present, sets LD_LIBRARY_PATH, then invokes
-# `dotnet test -c Release`. Forwards any positional arguments through
-# to dotnet test (e.g. `--filter` to scope the run).
+# Builds libitb.so + the solution via build.sh, points
+# ITB_LIBITB_PATH at the freshly-built shared library, then invokes
+# `dotnet test -c Release`. Positional arguments are forwarded
+# through to dotnet test (e.g. `--filter` to scope the run).
 #
 # Usage:
 #   ./run_tests.sh                              # all tests
-#   ./run_tests.sh --filter FullyQualifiedName~Blake3
+#   ./run_tests.sh --filter FullyQualifiedName~Smoke
 #   ./run_tests.sh --logger 'console;verbosity=detailed'
 
 set -eu
@@ -17,12 +18,8 @@ cd "$(dirname "$0")"
 REPO_ROOT="$(cd ../.. && pwd)"
 DIST_DIR="$REPO_ROOT/dist/linux-amd64"
 
-if [[ ! -f "$DIST_DIR/libitb.so" ]]; then
-    echo "error: libitb.so not found at $DIST_DIR" >&2
-    echo "       run ./build.sh first" >&2
-    exit 1
-fi
+./build.sh
 
-export LD_LIBRARY_PATH="$DIST_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export ITB_LIBITB_PATH="$DIST_DIR/libitb.so"
 
-exec dotnet test -c Release "$@"
+exec dotnet test Itb.sln -c Release --no-build "$@"

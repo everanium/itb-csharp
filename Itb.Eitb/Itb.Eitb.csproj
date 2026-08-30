@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Itb.Eitb</RootNamespace>
     <AssemblyName>Itb.Eitb</AssemblyName>
     <IsPackable>false</IsPackable>

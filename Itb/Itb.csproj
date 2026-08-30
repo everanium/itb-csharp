@@ -6,26 +6,25 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Itb</RootNamespace>
     <AssemblyName>Itb</AssemblyName>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Label="Package metadata">
     <PackageId>Itb</PackageId>
-    <Version>0.1.2</Version>
+    <Version>0.3.0</Version>
     <Authors>everanium</Authors>
-    <Description>C# / .NET binding for ITB (information-theoretic barrier) cipher via the libitb shared library.</Description>
+    <Description>C# / .NET binding for ITB (information-theoretic barrier) cipher — thin proxy over the libitb shared library's Triple Pipeline surface.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>cryptography;cipher;ouroboros;ffi;itb</PackageTags>
     <RepositoryUrl>https://github.com/everanium/itb</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
-  <ItemGroup Label="Assembly visibility for tests + benches">
+  <ItemGroup Label="Assembly visibility for tests + the eitb diagnostic CLI">
     <InternalsVisibleTo Include="Itb.Tests" />
-    <InternalsVisibleTo Include="Itb.Bench" />
+    <InternalsVisibleTo Include="Itb.Eitb" />
   </ItemGroup>
 
 </Project>

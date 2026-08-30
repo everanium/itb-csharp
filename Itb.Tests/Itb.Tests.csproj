@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Itb.Tests</RootNamespace>
     <AssemblyName>Itb.Tests</AssemblyName>
     <IsPackable>false</IsPackable>
