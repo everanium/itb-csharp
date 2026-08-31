@@ -48,6 +48,18 @@ public sealed class Opts
 
     public Opts WithInnerHash(string name) => WithRaw("innerHash", name);
 
+    /// <summary>Per-call constellation override mirroring the Go-side
+    /// <c>Opts.MixedHashes [8]string</c> field: the 8 slot names are
+    /// comma-joined into the <c>innerHashes</c> pass-through key in
+    /// the slot order <c>[noise, lock, data1, data2, data3, start1,
+    /// start2, start3]</c>. Fail-fast validation surfaces at Init on
+    /// the Go side; a typo'd slot or width mismatch surfaces with an
+    /// error naming the offending slot. When both this and
+    /// <see cref="WithInnerHash"/> are set, the mixed override wins
+    /// on the Go side.</summary>
+    public Opts WithInnerHashes(params string[] names) =>
+        WithRaw("innerHashes", string.Join(',', names));
+
     public Opts WithOuterCipher(string name) => WithRaw("outerCipher", name);
 
     /// <summary>Comma-joins the palette names

@@ -44,4 +44,21 @@ public class OptsTests
     {
         Assert.Equal(string.Empty, new Opts().Build());
     }
+
+    [Fact]
+    public void TypedInnerHashesRendersInnerHashesKey()
+    {
+        // Typed setter for the per-call constellation override
+        // (innerHashes) renders as the same query-string key that
+        // the raw escape hatch produces.
+        var query = new Opts()
+            .WithInnerHashes(
+                "blake3", "blake2s", "areion256", "blake2b256",
+                "chacha20", "blake3", "blake2s", "areion256")
+            .Build();
+        Assert.Equal(
+            "innerHashes=blake3,blake2s,areion256,blake2b256,chacha20," +
+            "blake3,blake2s,areion256",
+            query);
+    }
 }
