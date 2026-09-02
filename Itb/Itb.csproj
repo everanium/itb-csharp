@@ -13,7 +13,7 @@
 
   <PropertyGroup Label="Package metadata">
     <PackageId>Itb</PackageId>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <Authors>everanium</Authors>
     <Description>C# / .NET binding for ITB (information-theoretic barrier) cipher — thin proxy over the libitb shared library's Triple Pipeline surface.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
