@@ -7,7 +7,7 @@ namespace Itb;
 public static class Runtime
 {
     /// <summary>The binding's own version.</summary>
-    public const string BindingVersion = "0.3.3";
+    public const string BindingVersion = "0.3.4";
 
     /// <summary>Sets the Go runtime's soft heap limit in bytes and
     /// returns the previous limit. A negative value queries without
