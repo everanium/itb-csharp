@@ -1,4 +1,4 @@
-// Init -> Rekey -> Open receiver with the rotated blob -> round trip.
+// Init -> Rekey -> Load receiver from the rotated blob -> round trip.
 
 using System.Text;
 
@@ -10,16 +10,16 @@ public class RekeyTests
     public void RekeyRoundTrip()
     {
         using var sender = Pipeline.Init("singlemsg-triple-mac-v1");
-        var blobBefore = sender.Blob.ToArray();
+        var blobBefore = sender.Save();
 
         var perm = new byte[32];
         Array.Fill(perm, (byte)0x11);
         var wrap = new byte[32];
         Array.Fill(wrap, (byte)0x22);
         sender.Rekey(perm, wrap);
-        Assert.False(sender.Blob.SequenceEqual(blobBefore));
+        Assert.False(sender.Save().SequenceEqual(blobBefore));
 
-        using var receiver = Pipeline.Open("singlemsg-triple-mac-v1", sender.Blob);
+        using var receiver = Pipeline.Load(sender.Save());
         var plain = Encoding.UTF8.GetBytes("post-rekey payload");
         var wire = sender.EncryptMessage(plain);
         Assert.Equal(plain, receiver.DecryptMessage(wire));

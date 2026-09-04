@@ -3,16 +3,14 @@
 // Subcommands:
 //
 //   eitb version                                   library + binding versions
-//   eitb hashes                                    shipped hash primitive roster
+//   eitb profiles                                  registered profile catalogue
 //   eitb encrypt <profile> <in-file> <out-file>    Single Message encrypt
 //   eitb decrypt <profile> <blob-hex> <in-file> <out-file>
 //
 // `encrypt` prints the session blob to stderr as hex; feed that hex
-// back to `decrypt` on the receiving side.
-//
-// The `hashes` diagnostic iterates the registry through the internal
-// FFI surface (InternalsVisibleTo) — the binding library itself
-// deliberately exposes no primitive enumeration.
+// back to `decrypt` on the receiving side. `profiles` lists the
+// registered profile catalogue one name per line; the profiles that
+// carry a cipher surface are the ones `encrypt` / `decrypt` accept.
 
 namespace Itb.Eitb;
 
@@ -26,10 +24,10 @@ internal static class Program
         {
             switch (args.Length > 0 ? args[0] : null)
             {
-                case "version":
+                case "version" when args.Length == 1:
                     return CmdVersion();
-                case "hashes":
-                    return CmdHashes();
+                case "profiles" when args.Length == 1:
+                    return CmdProfiles();
                 case "encrypt" when args.Length == 4:
                     return CmdEncrypt(args[1], args[2], args[3]);
                 case "decrypt" when args.Length == 5:
@@ -37,7 +35,7 @@ internal static class Program
                 default:
                     Console.Error.WriteLine(
                         "usage: eitb version\n" +
-                        "       eitb hashes\n" +
+                        "       eitb profiles\n" +
                         "       eitb encrypt <profile> <in-file> <out-file>\n" +
                         "       eitb decrypt <profile> <blob-hex> <in-file> <out-file>");
                     return 2;
@@ -57,17 +55,13 @@ internal static class Program
         return 0;
     }
 
-    private static unsafe int CmdHashes()
+    // Prints the registered profile catalogue one name per line in
+    // the sorted order Pipeline.Profiles() returns.
+    private static int CmdProfiles()
     {
-        int count = NativeMethods.ITB_HashCount();
-        for (int i = 0; i < count; i++)
+        foreach (string name in Pipeline.Profiles())
         {
-            int index = i;
-            string name = NativeMethods.ReadCString(
-                (byte* buf, nuint cap, out nuint outLen) =>
-                    NativeMethods.ITB_HashName(index, buf, cap, out outLen));
-            int width = NativeMethods.ITB_HashWidth(i);
-            Console.WriteLine($"{i,2}  {name,-12} {width} bits");
+            Console.WriteLine(name);
         }
         return 0;
     }
@@ -97,7 +91,7 @@ internal static class Program
             : pipe.EncryptMessage(plain);
         EnsureParentDir(outFile);
         File.WriteAllBytes(outFile, wire);
-        Console.Error.WriteLine(Convert.ToHexStringLower(pipe.Blob));
+        Console.Error.WriteLine(Convert.ToHexStringLower(pipe.Save()));
         Console.WriteLine(
             $"encrypted {inFile} -> {outFile} ({plain.Length} -> {wire.Length} bytes)");
         return 0;
@@ -108,7 +102,7 @@ internal static class Program
     {
         var blob = Convert.FromHexString(blobHex);
         var wire = File.ReadAllBytes(inFile);
-        using var pipe = Pipeline.Open(profile, blob);
+        using var pipe = Pipeline.Load(blob);
         var plain = IsStreamingProfile(profile)
             ? pipe.DecryptStreamOneShot(wire)
             : pipe.DecryptMessage(wire);

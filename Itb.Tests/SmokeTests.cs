@@ -1,4 +1,4 @@
-// Init -> blob -> Open -> EncryptMessage -> DecryptMessage round trip.
+// Init -> Save -> Load -> EncryptMessage -> DecryptMessage round trip.
 
 using System.Text;
 
@@ -10,9 +10,9 @@ public class SmokeTests
     public void SmokeRoundTrip()
     {
         using var sender = Pipeline.Init("singlemsg-triple-mac-v1");
-        Assert.False(sender.Blob.IsEmpty);
+        Assert.NotEmpty(sender.Save());
 
-        using var receiver = Pipeline.Open("singlemsg-triple-mac-v1", sender.Blob);
+        using var receiver = Pipeline.Load(sender.Save());
 
         var plain = Encoding.UTF8.GetBytes("smoke round-trip payload");
         var wire = sender.EncryptMessage(plain);

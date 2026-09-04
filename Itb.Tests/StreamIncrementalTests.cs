@@ -11,7 +11,7 @@ public class StreamIncrementalTests
         // Small chunk size so the 64 KiB payload spans many chunks.
         var opts = new Opts().WithChunkSize(4096);
         using var sender = Pipeline.Init("streaming-aead-triple-mac-v1", opts);
-        using var receiver = Pipeline.Open("streaming-aead-triple-mac-v1", sender.Blob, opts);
+        using var receiver = Pipeline.Load(sender.Save());
 
         var plain = new byte[65_536];
         for (int i = 0; i < plain.Length; i++)

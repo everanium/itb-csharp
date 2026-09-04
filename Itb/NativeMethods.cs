@@ -71,8 +71,7 @@ internal static unsafe partial class NativeMethods
         byte* dst, nuint dstCap, out nuint outLen);
 
     /// <summary>Shape shared by the size-out-param C-string accessors
-    /// (<c>ITB_Version</c>, <c>ITB_LastError</c>, <c>ITB_HashName</c>
-    /// via closure).</summary>
+    /// (<c>ITB_Version</c>, <c>ITB_LastError</c>).</summary>
     internal delegate int CStrFn(byte* buf, nuint capBytes, out nuint outLen);
 
     // ----------------------------------------------------------------
@@ -92,21 +91,6 @@ internal static unsafe partial class NativeMethods
     internal static partial int ITB_SetGCPercent(int pct);
 
     // ----------------------------------------------------------------
-    // Hash-registry iteration — internal diagnostic surface consumed
-    // by the eitb CLI (InternalsVisibleTo); deliberately not exposed
-    // through the public binding API.
-    // ----------------------------------------------------------------
-
-    [LibraryImport(LibName)]
-    internal static partial int ITB_HashCount();
-
-    [LibraryImport(LibName)]
-    internal static partial int ITB_HashName(int i, byte* @out, nuint capBytes, out nuint outLen);
-
-    [LibraryImport(LibName)]
-    internal static partial int ITB_HashWidth(int i);
-
-    // ----------------------------------------------------------------
     // Triple Pipeline lifecycle
     // ----------------------------------------------------------------
 
@@ -116,15 +100,36 @@ internal static unsafe partial class NativeMethods
         byte* blobOut, nuint blobCap, out nuint blobLen,
         out PipelineHandle outHandle);
 
-    [LibraryImport(LibName, StringMarshalling = StringMarshalling.Utf8)]
-    internal static partial int ITB_Triple_Open(
-        string profile,
+    [LibraryImport(LibName)]
+    internal static partial int ITB_Triple_Load(
         byte* blob, nuint blobLen,
-        string opts,
         byte* permMaster, nuint permMasterLen,
         byte* wrapMaster, nuint wrapMasterLen,
         nuint mastersCount,
         out PipelineHandle outHandle);
+
+    [LibraryImport(LibName, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_Triple_LoadF(
+        string path,
+        byte* permMaster, nuint permMasterLen,
+        byte* wrapMaster, nuint wrapMasterLen,
+        nuint mastersCount,
+        out PipelineHandle outHandle);
+
+    [LibraryImport(LibName)]
+    internal static partial int ITB_Triple_Save(
+        PipelineHandle handle, byte* blobOut, nuint blobCap, out nuint blobLen);
+
+    [LibraryImport(LibName, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_Triple_SaveF(PipelineHandle handle, string path);
+
+    [LibraryImport(LibName)]
+    internal static partial int ITB_Triple_Inspect(
+        byte* blob, nuint blobLen,
+        byte* jsonOut, nuint jsonCap, out nuint jsonLen);
+
+    [LibraryImport(LibName)]
+    internal static partial int ITB_Triple_MaxWorkers(PipelineHandle handle, int n);
 
     [LibraryImport(LibName)]
     internal static partial int ITB_Triple_Rekey(
@@ -139,8 +144,20 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(LibName)]
     internal static partial int ITB_Triple_Free(nuint handle);
 
+    // ----------------------------------------------------------------
+    // Profile registry
+    // ----------------------------------------------------------------
+
     [LibraryImport(LibName, StringMarshalling = StringMarshalling.Utf8)]
-    internal static partial int ITB_Triple_RegisterProfile(string name, string opts);
+    internal static partial int ITB_Triple_Register(string name, string profileJson);
+
+    [LibraryImport(LibName, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_Triple_Lookup(
+        string name, byte* jsonOut, nuint jsonCap, out nuint jsonLen);
+
+    [LibraryImport(LibName)]
+    internal static partial int ITB_Triple_Profiles(
+        byte* jsonOut, nuint jsonCap, out nuint jsonLen);
 
     // ----------------------------------------------------------------
     // Buffer-in / buffer-out cipher entries

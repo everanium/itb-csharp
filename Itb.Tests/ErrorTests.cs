@@ -9,10 +9,10 @@ namespace Itb.Tests;
 public class ErrorTests
 {
     [Fact]
-    public void UnknownProfileIsBadInputWithDiagnostic()
+    public void UnknownProfileIsUnknownProfileWithDiagnostic()
     {
         var ex = Assert.Throws<ItbException>(() => Pipeline.Init("no-such-profile"));
-        Assert.Equal(Status.BadInput, ex.Status);
+        Assert.Equal(Status.UnknownProfile, ex.Status);
         Assert.False(string.IsNullOrEmpty(ex.Message));
     }
 
@@ -38,31 +38,51 @@ public class ErrorTests
     }
 
     [Fact]
-    public void RegisterProfileMixedThenDuplicate()
+    public void RegisterMixedThenDuplicate()
     {
-        // 8-entry width-256 innerHashes constellation, layers off.
-        var opts = new Opts()
-            .WithRaw("mode", "singlemsg-nomac")
-            .WithRaw("width", "256")
-            .WithRaw(
-                "innerHashes",
-                "blake3,blake2s,areion256,blake2b256,chacha20,blake3,blake2s,areion256")
-            .WithRaw("keyBits", "1024")
-            .WithRaw("parallaxOn", "false")
-            .WithRaw("wrapperOn", "false");
-        Pipeline.RegisterProfile("csharp-binding-test-mixed", opts);
+        // 8-entry width-256 mixed constellation, layers off.
+        var profile = new Profile
+        {
+            Mode = "singlemsg-nomac",
+            Width = 256,
+            Hashes = new[]
+            {
+                "blake3", "blake2s", "areion256", "blake2b256",
+                "chacha20", "blake3", "blake2s", "areion256",
+            },
+            KeyBits = 1024,
+            Parallax = false,
+            Wrapper = false,
+        };
+        Pipeline.Register("csharp-binding-test-mixed", profile);
 
         // The registered profile round-trips.
         using var sender = Pipeline.Init("csharp-binding-test-mixed");
-        using var receiver = Pipeline.Open("csharp-binding-test-mixed", sender.Blob);
+        using var receiver = Pipeline.Load(sender.Save());
         var plain = Encoding.UTF8.GetBytes("custom profile");
         var wire = sender.EncryptMessage(plain);
         Assert.Equal(plain, receiver.DecryptMessage(wire));
 
         // Duplicate name is a distinct status.
         var ex = Assert.Throws<ItbException>(
-            () => Pipeline.RegisterProfile("csharp-binding-test-mixed", opts));
+            () => Pipeline.Register("csharp-binding-test-mixed", profile));
         Assert.Equal(Status.ProfileExists, ex.Status);
+    }
+
+    [Fact]
+    public void LookupUnknownNameIsUnknownProfile()
+    {
+        var ex = Assert.Throws<ItbException>(() => Pipeline.Lookup("no-such-profile"));
+        Assert.Equal(Status.UnknownProfile, ex.Status);
+    }
+
+    [Fact]
+    public void MaxWorkersOnClosedPipelineIsTripleClosed()
+    {
+        using var pipe = Pipeline.Init("singlemsg-triple-mac-v1");
+        pipe.Close();
+        var ex = Assert.Throws<ItbException>(() => pipe.MaxWorkers(2));
+        Assert.Equal(Status.TripleClosed, ex.Status);
     }
 
     [Fact]

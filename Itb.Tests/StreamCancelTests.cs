@@ -23,7 +23,7 @@ public class StreamCancelTests
         }
 
         // The Pipeline stays usable after the cancelled session.
-        using var receiver = Pipeline.Open("streaming-aead-triple-mac-v1", sender.Blob);
+        using var receiver = Pipeline.Load(sender.Save());
         var plain = Encoding.UTF8.GetBytes("after cancel");
         var wire = sender.EncryptMessage(plain);
         Assert.Equal(plain, receiver.DecryptMessage(wire));

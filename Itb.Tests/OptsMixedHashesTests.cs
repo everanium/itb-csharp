@@ -21,8 +21,7 @@ public class OptsMixedHashesTests
             "areion512", "blake2b512", "areion512", "blake2b512",
             "areion512", "blake2b512", "areion512", "blake2b512");
         using var sender = Pipeline.Init("singlemsg-triple-mac-v1", over);
-        using var receiver = Pipeline.Open(
-            "singlemsg-triple-mac-v1", sender.Blob, over);
+        using var receiver = Pipeline.Load(sender.Save());
         var plain = Encoding.UTF8.GetBytes(
             "mixed-hashes typed override round trip");
         var wire = sender.EncryptMessage(plain);

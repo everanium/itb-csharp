@@ -16,7 +16,7 @@ public class StreamStickyTests
     public void TamperedWireStickyFailure()
     {
         using var sender = Pipeline.Init("streaming-aead-triple-mac-v1");
-        using var receiver = Pipeline.Open("streaming-aead-triple-mac-v1", sender.Blob);
+        using var receiver = Pipeline.Load(sender.Save());
 
         var plain = new byte[65_536];
         for (int i = 0; i < plain.Length; i++)

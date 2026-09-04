@@ -39,7 +39,7 @@ public class MessageTests
         foreach (var profile in profiles)
         {
             using var sender = Pipeline.Init(profile);
-            using var receiver = Pipeline.Open(profile, sender.Blob);
+            using var receiver = Pipeline.Load(sender.Save());
             foreach (var size in new[] { 4 * 1024, 256 * 1024 })
             {
                 var plain = Payload(size, (ulong)size);
