@@ -1,0 +1,25 @@
+# Build output
+bin/
+obj/
+
+# IDE / tooling
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+
+# Test output
+TestResults/
+*.coverage
+*.coveragexml
+
+# Local package cache
+.nuget/

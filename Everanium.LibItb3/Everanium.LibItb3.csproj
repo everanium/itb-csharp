@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Everanium.Itb3</RootNamespace>
+    <AssemblyName>Everanium.LibItb3</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package metadata">
+    <PackageId>Everanium.LibItb3</PackageId>
+    <Version>0.5.1</Version>
+    <Authors>Andrey Kuvshinov</Authors>
+    <Description>ITB Symmetric Cipher Construction with Ambiguity-Based Security - C#</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageTags>cryptography;encryption;cipher;symmetric;aead</PackageTags>
+    <RepositoryUrl>https://github.com/everanium/itb</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/everanium/itb</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) 2026 Andrey Kuvshinov</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup Label="Package content">
+    <None Include="..\README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup Label="Assembly visibility for tests">
+    <InternalsVisibleTo Include="Everanium.LibItb3.Tests" />
+  </ItemGroup>
+
+</Project>

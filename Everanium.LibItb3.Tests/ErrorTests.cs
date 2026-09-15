@@ -1,0 +1,98 @@
+// Error-mapping surface: opaque-string relay, closed Pipeline,
+// duplicate profile registration (with an 8-entry innerHashes
+// constellation).
+
+using System.Text;
+
+namespace Everanium.Itb3.Tests;
+
+public class ErrorTests
+{
+    [Fact]
+    public void UnknownProfileIsUnknownProfileWithDiagnostic()
+    {
+        var ex = Assert.Throws<ItbException>(() => Pipeline.Init("no-such-profile"));
+        Assert.Equal(Status.UnknownProfile, ex.Status);
+        Assert.False(string.IsNullOrEmpty(ex.Message));
+    }
+
+    [Fact]
+    public void UnknownOptsKeyIsBadInput()
+    {
+        // Typoed key (lowercase s) — Go rejects unknown keys.
+        var opts = new Opts().WithRaw("chunksize", "4096");
+        var ex = Assert.Throws<ItbException>(
+            () => Pipeline.Init("singlemsg-triple-mac-v1", opts));
+        Assert.Equal(Status.BadInput, ex.Status);
+    }
+
+    [Fact]
+    public void ClosedPipelineReportsTripleClosed()
+    {
+        using var pipe = Pipeline.Init("singlemsg-triple-mac-v1");
+        pipe.Close();
+        pipe.Close(); // idempotent
+        var ex = Assert.Throws<ItbException>(
+            () => pipe.EncryptMessage(Encoding.UTF8.GetBytes("payload")));
+        Assert.Equal(Status.TripleClosed, ex.Status);
+    }
+
+    [Fact]
+    public void RegisterMixedThenDuplicate()
+    {
+        // 8-entry width-256 mixed constellation, layers off.
+        var profile = new Profile
+        {
+            Mode = "singlemsg-nomac",
+            Width = 256,
+            Hashes = new[]
+            {
+                "blake3", "blake2s", "areion256", "blake2b256",
+                "chacha20", "blake3", "blake2s", "areion256",
+            },
+            KeyBits = 1024,
+            Parallax = false,
+            Wrapper = false,
+        };
+        Pipeline.Register("csharp-binding-test-mixed", profile);
+
+        // The registered profile round-trips.
+        using var sender = Pipeline.Init("csharp-binding-test-mixed");
+        using var receiver = Pipeline.Load(sender.Save());
+        var plain = Encoding.UTF8.GetBytes("custom profile");
+        var wire = sender.EncryptMessage(plain);
+        Assert.Equal(plain, receiver.DecryptMessage(wire));
+
+        // Duplicate name is a distinct status.
+        var ex = Assert.Throws<ItbException>(
+            () => Pipeline.Register("csharp-binding-test-mixed", profile));
+        Assert.Equal(Status.ProfileExists, ex.Status);
+    }
+
+    [Fact]
+    public void LookupUnknownNameIsUnknownProfile()
+    {
+        var ex = Assert.Throws<ItbException>(() => Pipeline.Lookup("no-such-profile"));
+        Assert.Equal(Status.UnknownProfile, ex.Status);
+    }
+
+    [Fact]
+    public void MaxWorkersOnClosedPipelineIsTripleClosed()
+    {
+        using var pipe = Pipeline.Init("singlemsg-triple-mac-v1");
+        pipe.Close();
+        var ex = Assert.Throws<ItbException>(() => pipe.MaxWorkers(2));
+        Assert.Equal(Status.TripleClosed, ex.Status);
+    }
+
+    [Fact]
+    public void OpaquePrimitiveNameRelay()
+    {
+        // An unknown inner-hash name is relayed to Go and rejected
+        // there — the binding performs no name validation of its own.
+        var opts = new Opts().WithInnerHash("no-such-hash");
+        var ex = Assert.Throws<ItbException>(
+            () => Pipeline.Init("singlemsg-triple-mac-v1", opts));
+        Assert.NotEqual(Status.Ok, ex.Status);
+    }
+}
