@@ -63,6 +63,8 @@ public sealed class Opts
 
     public Opts WithOuterCipher(string name) => WithRaw("outerCipher", name);
 
+    public Opts WithDrbg(string name) => WithRaw("drbg", name);
+
     /// <summary>Comma-joins the palette names
     /// (<c>parallaxPalette</c>).</summary>
     public Opts WithParallaxPalette(params string[] names) =>

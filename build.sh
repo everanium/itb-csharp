@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# build.sh -- one-step build for the C# / .NET binding: libitb3.so +
-# dotnet build. Prerequisites (Go, dotnet-sdk) must be installed
-# separately; see README.md "Prerequisites" section.
+# One-step build for the C# / .NET binding: libitb3.so + dotnet build.
+# Prerequisites (Go, dotnet-sdk) must be installed separately; see
+# README.md "Prerequisites" section.
 #
 # The build starts from an empty tree: the bin/ and obj/ directories of
 # every project in the solution, plus any test result output, are
@@ -117,6 +117,7 @@ else
         Everanium.LibItb3.Tests/TestResults \
         Everanium.LibItb3.Bench/bin     Everanium.LibItb3.Bench/obj \
         Everanium.LibItb3.Eitb/bin      Everanium.LibItb3.Eitb/obj \
+        loop/bin                        loop/obj \
         TestResults
 fi
 
@@ -126,13 +127,15 @@ go build -trimpath "${TAGS[@]}" -buildmode=c-shared \
     -o dist/linux-amd64/libitb3.so ./cmd/cshared
 
 cd "$BINDING_DIR"
-# The solution carries the library, the test, the bench and the eitb
-# projects, so one build covers every artefact the sibling scripts run.
+# The solution carries the library, the test, the bench, the eitb and
+# the loop projects, so one build covers every artefact the sibling
+# scripts run.
 echo "==> building C# / .NET binding (dotnet build -c Release)"
 dotnet build Everanium.LibItb3.sln -c Release
 
 require_built "$BINDING_DIR/Everanium.LibItb3/bin/Release/net*/Everanium.LibItb3.dll"
 require_built "$BINDING_DIR/Everanium.LibItb3.Eitb/bin/Release/net*/Everanium.LibItb3.Eitb.dll"
 require_built "$BINDING_DIR/Everanium.LibItb3.Bench/bin/Release/net*/Everanium.LibItb3.Bench.dll"
+require_built "$BINDING_DIR/Everanium.LibItb3.Loop/bin/Release/net*/Everanium.LibItb3.Loop.dll"
 
 echo "==> ready: ./run_tests.sh"

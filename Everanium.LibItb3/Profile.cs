@@ -25,13 +25,14 @@ namespace Everanium.Itb3;
 /// names in the order <c>[noise, lock, data1, data2, data3, start1,
 /// start2, start3]</c>.
 ///
-/// <see cref="NonceBits"/> and <see cref="BarrierFill"/> are
-/// inspection-only. They are not part of the profile recipe:
-/// <see cref="Pipeline.Inspect"/> reads them from the blob's runtime
-/// globals snapshot, while <see cref="Pipeline.Lookup"/> leaves both
-/// <c>null</c> because the registry entry never carries them. libitb3
-/// rejects a <see cref="Pipeline.Register"/> payload that carries
-/// either key, so clear both before registering an inspected record.
+/// <see cref="NonceBits"/>, <see cref="BarrierFill"/> and
+/// <see cref="ContainerMode"/> are inspection-only. They are not part
+/// of the profile recipe: <see cref="Pipeline.Inspect"/> reads them
+/// from the blob's inner snapshot, while <see cref="Pipeline.Lookup"/>
+/// leaves them <c>null</c> because the registry entry never carries
+/// them. libitb3 rejects a <see cref="Pipeline.Register"/> payload that
+/// carries any of the keys, so clear them before registering an
+/// inspected record.
 /// </summary>
 public sealed class Profile
 {
@@ -68,6 +69,16 @@ public sealed class Profile
     /// from the blob's runtime globals. Same inspection-only lifecycle
     /// as <see cref="NonceBits"/>.</summary>
     public int? BarrierFill { get; set; }
+
+    /// <summary>Container floor sizing mode (<c>container_mode</c>),
+    /// read from the blob's inner mode field: 1 per-region, 2
+    /// per-container. Same inspection-only lifecycle as
+    /// <see cref="NonceBits"/>.</summary>
+    public int? ContainerMode { get; set; }
+
+    /// <summary>DRBG fill primitive name (<c>drbg</c>); empty when
+    /// absent, which keeps the auto tier.</summary>
+    public string Drbg { get; set; } = "";
 
     /// <summary>MAC name (<c>mac</c>); empty on a No MAC
     /// profile.</summary>
@@ -115,6 +126,8 @@ public sealed class Profile
             w.WriteNumber("keybits", KeyBits);
             if (NonceBits.HasValue) w.WriteNumber("nonce_bits", NonceBits.Value);
             if (BarrierFill.HasValue) w.WriteNumber("barrier_fill", BarrierFill.Value);
+            if (ContainerMode.HasValue) w.WriteNumber("container_mode", ContainerMode.Value);
+            if (Drbg.Length > 0) w.WriteString("drbg", Drbg);
             if (Mac.Length > 0) w.WriteString("mac", Mac);
             if (TagStub != 0) w.WriteNumber("tagstub", TagStub);
             if (Chunk != 0) w.WriteNumber("chunk", Chunk);
@@ -147,6 +160,8 @@ public sealed class Profile
                 case "keybits": p.KeyBits = prop.Value.GetInt32(); break;
                 case "nonce_bits": p.NonceBits = prop.Value.GetInt32(); break;
                 case "barrier_fill": p.BarrierFill = prop.Value.GetInt32(); break;
+                case "container_mode": p.ContainerMode = prop.Value.GetInt32(); break;
+                case "drbg": p.Drbg = prop.Value.GetString() ?? ""; break;
                 case "mac": p.Mac = prop.Value.GetString() ?? ""; break;
                 case "tagstub": p.TagStub = prop.Value.GetInt32(); break;
                 case "chunk": p.Chunk = prop.Value.GetInt32(); break;

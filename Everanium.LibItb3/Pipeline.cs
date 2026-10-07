@@ -187,6 +187,16 @@ public sealed unsafe class Pipeline : IDisposable
         return Profile.StringsFromJson(Encoding.UTF8.GetString(json));
     }
 
+    /// <summary>The names of every primitive in the shipped hash
+    /// registry, in canonical order. Primitives registered at runtime
+    /// on the Go side are not part of this enumeration.</summary>
+    public static string[] HashNames()
+    {
+        var json = RetryOnce(JsonCap, (byte* dst, nuint cap, out nuint len) =>
+            NativeMethods.ITB_Triple_HashNames(dst, cap, out len));
+        return Profile.StringsFromJson(Encoding.UTF8.GetString(json));
+    }
+
     /// <summary>The current self-describing session blob: the bytes
     /// <see cref="Init"/> produced, the bytes <see cref="Load"/>
     /// re-marshalled, or the bytes of the latest

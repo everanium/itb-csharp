@@ -95,7 +95,7 @@ internal static class SignalPolicy
     internal static void RestoreActivationFlags(int? before)
     {
         // Nothing sampled, or the host had already chosen SA_ONSTACK for
-        // itself — in either case this is not ours to change.
+        // itself — in either case this disposition is not modified.
         if (before is not int prior || (prior & SA_ONSTACK) != 0)
         {
             return;

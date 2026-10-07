@@ -1,7 +1,7 @@
 // Source-generated P/Invoke surface over the libitb3 C ABI, restricted
 // to the ITB_Triple_* Pipeline entries plus the version / last-error /
-// Go-runtime-knob accessors (and the hash-registry iteration triple
-// consumed internally by the eitb diagnostic CLI).
+// Go-runtime-knob accessors (and the hash-names enumeration
+// consumed by the loop harness).
 //
 // Every signature mirrors a prototype in cmd/cshared/libitb3.h. Type
 // mapping:
@@ -82,6 +82,9 @@ internal static unsafe partial class NativeMethods
     internal static partial int ITB_Version(byte* @out, nuint capBytes, out nuint outLen);
 
     [LibraryImport(LibName)]
+    internal static partial int ITB_DRBGAutoTier(byte* @out, nuint capBytes, out nuint outLen);
+
+    [LibraryImport(LibName)]
     internal static partial int ITB_LastError(byte* @out, nuint capBytes, out nuint outLen);
 
     [LibraryImport(LibName)]
@@ -89,6 +92,19 @@ internal static unsafe partial class NativeMethods
 
     [LibraryImport(LibName)]
     internal static partial int ITB_SetGCPercent(int pct);
+
+    [LibraryImport(LibName)]
+    internal static partial int ITB_SetGOMAXPROCS(int n);
+
+    [LibraryImport(LibName, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_WriteHeapProfile(string path);
+
+    [LibraryImport(LibName)]
+    internal static partial int ITB_PoolStatsLen();
+
+    [LibraryImport(LibName)]
+    internal static partial int ITB_PoolStats(
+        long* @out, nuint capElems, out nuint lenElems);
 
     // ----------------------------------------------------------------
     // Triple Pipeline lifecycle
@@ -157,6 +173,10 @@ internal static unsafe partial class NativeMethods
 
     [LibraryImport(LibName)]
     internal static partial int ITB_Triple_Profiles(
+        byte* jsonOut, nuint jsonCap, out nuint jsonLen);
+
+    [LibraryImport(LibName)]
+    internal static partial int ITB_Triple_HashNames(
         byte* jsonOut, nuint jsonCap, out nuint jsonLen);
 
     // ----------------------------------------------------------------
@@ -243,6 +263,10 @@ internal static unsafe partial class NativeMethods
 
     /// <summary>Reads the libitb3 library version string.</summary>
     internal static string VersionString() => ReadCString(ITB_Version);
+
+    /// <summary>Reads the fill cipher the auto DRBG tier selected on
+    /// this host.</summary>
+    internal static string DrbgAutoTierString() => ReadCString(ITB_DRBGAutoTier);
 
     /// <summary>
     /// Reads the <c>ITB_LastError</c> diagnostic. Returns the empty
