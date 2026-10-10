@@ -13,7 +13,7 @@
 
   <PropertyGroup Label="Package metadata">
     <PackageId>Everanium.LibItb3</PackageId>
-    <Version>0.5.1</Version>
+    <Version>0.5.5</Version>
     <Authors>Andrey Kuvshinov</Authors>
     <Description>ITB Symmetric Cipher Construction with Ambiguity-Based Security - C#</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>

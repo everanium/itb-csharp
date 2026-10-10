@@ -8,7 +8,7 @@ namespace Everanium.Itb3;
 public static unsafe class Runtime
 {
     /// <summary>The binding's own version.</summary>
-    public const string BindingVersion = "0.5.1";
+    public const string BindingVersion = "0.5.5";
 
     /// <summary>Sets the Go runtime's soft heap limit in bytes and
     /// returns the previous limit. A negative value queries without
