@@ -41,9 +41,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace Everanium.Itb3.Loop;
 
@@ -839,6 +836,7 @@ internal static class Program
     private static (Pipeline Pipe, byte[] Blob)? BuildPipeline(Config cfg, string profile)
     {
         var opts = new Opts()
+            .WithMode(cfg.BlobMode)
             .WithInnerHash(cfg.Hash)
             .WithMacName(cfg.Mac)
             .WithParallax(cfg.Parallax)
@@ -884,32 +882,6 @@ internal static class Program
             pipe.Dispose();
             return null;
         }
-        if (cfg.BlobMode == 2)
-        {
-            // The sizing mode is not an Opts knob: the Init blob is
-            // edited and the pipeline reopened from it, so the retained
-            // blob (the one blob-cycle reopens from) carries the edited
-            // mode.
-            pipe.Dispose();
-            try
-            {
-                blob = SetInnerBlobMode(blob, 2);
-            }
-            catch (Exception e)
-            {
-                Console.Error.WriteLine($"loop: rewrite blob mode: {e.Message}");
-                return null;
-            }
-            try
-            {
-                pipe = Pipeline.Load(blob);
-            }
-            catch (Exception e)
-            {
-                Console.Error.WriteLine($"loop: reload Mode 2 blob: {Worker.Detail(e)}");
-                return null;
-            }
-        }
         LogPipelineInitialised(profile, blob);
         return (pipe, blob);
     }
@@ -945,33 +917,6 @@ internal static class Program
             + $"parallax={OnOff(rec.Parallax)} wrapper={OnOff(rec.Wrapper)}"
             + (rec.ContainerMode == 2 ? " container-mode=2" : "")
             + (rec.Drbg.Length > 0 ? $" drbg={rec.Drbg}" : ""));
-    }
-
-    /// <summary>Returns a copy of a wrap-layer session blob whose inner
-    /// blob ("ib") carries the given container floor sizing mode
-    /// (1 = per-region, 2 = per-container). The wrap layer's profile
-    /// record carries its own "mode" (a string), so only the inner
-    /// blob's integer field is set; no key is added, integers keep
-    /// their literals, and strings are written without escaping the
-    /// base64 alphabet.</summary>
-    private static byte[] SetInnerBlobMode(byte[] blob, int mode)
-    {
-        var root = JsonNode.Parse(blob) as JsonObject
-            ?? throw new FormatException("session blob is not a JSON object");
-        if (root["ib"] is not JsonObject ib || !ib.ContainsKey("mode"))
-        {
-            throw new FormatException("inner blob mode field not found");
-        }
-        ib["mode"] = mode;
-        using var buf = new MemoryStream();
-        using (var w = new Utf8JsonWriter(buf, new JsonWriterOptions
-        {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        }))
-        {
-            root.WriteTo(w);
-        }
-        return buf.ToArray();
     }
 
     // --------------------------------------------------------------

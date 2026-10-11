@@ -81,20 +81,24 @@ public class PersistTests
         using (var pipe = Pipeline.Init("streaming-aead-triple-mac-v1"))
         {
             var prof = Pipeline.Inspect(pipe.Save());
+            Assert.Equal(1, prof.ContainerMode);
             Assert.Equal(512, prof.NonceBits);
             Assert.Equal(1, prof.BarrierFill);
         }
 
         // Per-Pipeline overrides travel through the blob into Inspect.
-        var opts = new Opts().WithNonceBits(256).WithBarrierFill(4);
+        var opts = new Opts().WithMode(2).WithNonceBits(256).WithBarrierFill(4);
         using (var pipe = Pipeline.Init("streaming-aead-triple-mac-v1", opts))
         {
             var prof = Pipeline.Inspect(pipe.Save());
+            Assert.Equal(2, prof.ContainerMode);
             Assert.Equal(256, prof.NonceBits);
             Assert.Equal(4, prof.BarrierFill);
+            Assert.Contains("\"container_mode\":2", prof.ToJson());
             Assert.Contains("\"nonce_bits\":256", prof.ToJson());
             Assert.Contains("\"barrier_fill\":4", prof.ToJson());
-            // Clone round-trips the two fields rather than dropping them.
+            // Clone round-trips the fields rather than dropping them.
+            Assert.Equal(2, prof.Clone().ContainerMode);
             Assert.Equal(256, prof.Clone().NonceBits);
             Assert.Equal(4, Profile.FromJson(prof.ToJson()).BarrierFill);
         }
@@ -102,8 +106,10 @@ public class PersistTests
         // The registry entry is the recipe alone — neither field is
         // part of it, so both read as absent rather than as zero.
         var registry = Pipeline.Lookup("streaming-aead-triple-mac-v1");
+        Assert.Null(registry.ContainerMode);
         Assert.Null(registry.NonceBits);
         Assert.Null(registry.BarrierFill);
+        Assert.DoesNotContain("container_mode", registry.ToJson());
         Assert.DoesNotContain("nonce_bits", registry.ToJson());
         Assert.DoesNotContain("barrier_fill", registry.ToJson());
     }

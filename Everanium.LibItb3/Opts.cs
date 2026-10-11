@@ -21,6 +21,9 @@ public sealed class Opts
 {
     private readonly List<KeyValuePair<string, string>> _pairs = new();
 
+    /// <summary>Container floor sizing mode: 1 (per-region, default) | 2 (per-container).</summary>
+    public Opts WithMode(long n) => WithRaw("mode", n.ToString());
+
     /// <summary>Hex-encodes the parallax master override
     /// (<c>pm</c>).</summary>
     public Opts WithPermMaster(ReadOnlySpan<byte> master) => WithRaw("pm", Hex(master));

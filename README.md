@@ -78,7 +78,7 @@ palette, `MaxWorkers`); the blob the receiver loads carries the
 resolved shape, so `Load` takes no opts:
 
 ```csharp
-var opts = new Opts().WithChunkSize(65536).WithWrapper(false);
+var opts = new Opts().WithMode(2).WithChunkSize(65536).WithWrapper(false);
 using var sender = Pipeline.Init("singlemsg-triple-mac-v1", opts);
 using var receiver = Pipeline.Load(sender.Save());
 ```
