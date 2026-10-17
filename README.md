@@ -12,7 +12,7 @@ Thin proxy over the libitb3 shared library's `ITB_Triple_*` surface
 the first FFI call, no compile-time link. Every hash-name / MAC-name
 / cipher-name / profile-name is an opaque string passed through to
 Go for validation; the binding carries no ITB construction logic.
-The public surface is one `Pipeline` type (Init / Load / Save /
+The public surface is one `Pipeline` type (Init / InitKeys / Load / Save /
 Rekey / Close, Single Message encrypt / decrypt, one-shot and
 incremental stream sessions with `System.IO.Stream` pumps), an
 `Opts` query-string builder, a `Profile` record with the registry
@@ -82,6 +82,8 @@ var opts = new Opts().WithMode(2).WithChunkSize(65536).WithWrapper(false);
 using var sender = Pipeline.Init("singlemsg-triple-mac-v1", opts);
 using var receiver = Pipeline.Load(sender.Save());
 ```
+
+`Pipeline.InitKeys` constructs a `Pipeline` deterministically from eight caller-supplied master keys (one per seed slot `0..7`) via per-slot KDF, so two peers holding the same eight master keys derive identical `Pipeline` instances without exchanging a session blob. The eight master keys must come from independent entropy or key-agreement sources — never derive all eight keys from a single secret or a single KDF parent key.
 
 `Pipeline.Rekey` rotates the parallax + wrapper masters mid-session
 (the eight ITB seeds and MAC key are fixed for the session lifetime

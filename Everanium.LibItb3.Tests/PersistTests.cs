@@ -220,4 +220,34 @@ public class PersistTests
         using var receiver = Pipeline.Load(sender.Save());
         Assert.Equal(Plain, receiver.DecryptMessage(sender.EncryptMessage(Plain)));
     }
+
+    [Fact]
+    public void InitKeysDeterminismAndValidation()
+    {
+        var masters = new byte[8][];
+        for (int i = 0; i < 8; i++)
+        {
+            masters[i] = new byte[32];
+            Array.Fill(masters[i], (byte)(0x11 * (i + 1)));
+        }
+
+        using var p1 = Pipeline.InitKeys("singlemsg-triple-mac-v1", masters);
+        using var p2 = Pipeline.InitKeys("singlemsg-triple-mac-v1", (Opts?)null, masters);
+        Assert.Equal(p1.Save(), p2.Save());
+        Assert.Equal(Plain, p2.DecryptMessage(p1.EncryptMessage(Plain)));
+
+        var dup = (byte[][])masters.Clone();
+        dup[1] = dup[0];
+        var exDup = Assert.Throws<ItbException>(
+            () => Pipeline.InitKeys("singlemsg-triple-mac-v1", dup));
+        Assert.Equal(Status.BadInput, exDup.Status);
+
+        var shortKeys = (byte[][])masters.Clone();
+        shortKeys[0] = new byte[8];
+        Array.Fill(shortKeys[0], (byte)0x11);
+        var exShort = Assert.Throws<ItbException>(
+            () => Pipeline.InitKeys("singlemsg-triple-mac-v1", shortKeys));
+        Assert.Equal(Status.BadInput, exShort.Status);
+    }
 }
+

@@ -73,6 +73,91 @@ public sealed unsafe class Pipeline : IDisposable
     }
 
     /// <summary>
+    /// Deterministically constructs a Pipeline from eight caller-supplied
+    /// master keys (one per canonical seed slot 0..7) against the named
+    /// profile and options. The eight master keys must come from
+    /// independent entropy or key-agreement sources; never derive all
+    /// eight keys from a single secret or a single KDF parent key.
+    /// </summary>
+    public static Pipeline InitKeys(string profile, byte[][] masters, Opts? opts = null)
+        => InitKeys(profile, opts, masters);
+
+    /// <summary>
+    /// Deterministically constructs a Pipeline from eight caller-supplied
+    /// master keys (one per canonical seed slot 0..7) against the named
+    /// profile and options. The eight master keys must come from
+    /// independent entropy or key-agreement sources; never derive all
+    /// eight keys from a single secret or a single KDF parent key.
+    /// </summary>
+    public static Pipeline InitKeys(string profile, Opts? opts, byte[][] masters)
+    {
+        string optsStr = opts?.Build() ?? string.Empty;
+        int count = masters?.Length ?? 0;
+        var masterLens = new nuint[count];
+        int totalLen = 0;
+        for (int i = 0; i < count; i++)
+        {
+            int len = masters![i]?.Length ?? 0;
+            masterLens[i] = (nuint)len;
+            totalLen = checked(totalLen + len);
+        }
+        var mastersFlat = new byte[totalLen];
+        try
+        {
+            int off = 0;
+            for (int i = 0; i < count; i++)
+            {
+                var m = masters![i];
+                if (m is { Length: > 0 })
+                {
+                    Buffer.BlockCopy(m, 0, mastersFlat, off, m.Length);
+                    off += m.Length;
+                }
+            }
+            var blob = new byte[BlobCap];
+            nuint blobLen;
+            PipelineHandle handle;
+            int rc;
+            fixed (byte* pFlat = mastersFlat)
+            fixed (nuint* pLens = masterLens)
+            fixed (byte* p = blob)
+            {
+                rc = NativeMethods.ITB_Triple_InitKeys(
+                    profile, optsStr,
+                    pFlat, (nuint)mastersFlat.Length,
+                    pLens, (nuint)count,
+                    p, (nuint)blob.Length, out blobLen, out handle);
+            }
+            if (rc == (int)Status.BufferTooSmall && blobLen > (nuint)blob.Length)
+            {
+                handle.Dispose();
+                blob = new byte[checked((int)blobLen)];
+                fixed (byte* pFlat = mastersFlat)
+                fixed (nuint* pLens = masterLens)
+                fixed (byte* p = blob)
+                {
+                    rc = NativeMethods.ITB_Triple_InitKeys(
+                        profile, optsStr,
+                        pFlat, (nuint)mastersFlat.Length,
+                        pLens, (nuint)count,
+                        p, (nuint)blob.Length, out blobLen, out handle);
+                }
+            }
+            if (rc != (int)Status.Ok)
+            {
+                handle.Dispose();
+                throw ItbException.FromRc(rc);
+            }
+            return new Pipeline(handle);
+        }
+        finally
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(mastersFlat);
+        }
+    }
+
+
+    /// <summary>
     /// Reconstructs a Pipeline from a blob produced by
     /// <see cref="Save"/> or <see cref="Rekey"/>. The blob's embedded
     /// profile record is the sole structural source. Omitting

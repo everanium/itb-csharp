@@ -116,6 +116,15 @@ internal static unsafe partial class NativeMethods
         byte* blobOut, nuint blobCap, out nuint blobLen,
         out PipelineHandle outHandle);
 
+    [LibraryImport(LibName, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial int ITB_Triple_InitKeys(
+        string profile, string opts,
+        byte* mastersFlat, nuint mastersFlatLen,
+        nuint* masterLens, nuint mastersCount,
+        byte* blobOut, nuint blobCap, out nuint blobLen,
+        out PipelineHandle outHandle);
+
+
     [LibraryImport(LibName)]
     internal static partial int ITB_Triple_Load(
         byte* blob, nuint blobLen,
