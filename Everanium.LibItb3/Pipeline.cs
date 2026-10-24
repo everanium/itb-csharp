@@ -44,32 +44,40 @@ public sealed unsafe class Pipeline : IDisposable
     {
         string optsStr = opts?.Build() ?? string.Empty;
         var blob = new byte[BlobCap];
-        nuint blobLen;
-        PipelineHandle handle;
-        int rc;
-        fixed (byte* p = blob)
+        try
         {
-            rc = NativeMethods.ITB_Triple_Init(
-                profile, optsStr, p, (nuint)blob.Length, out blobLen, out handle);
-        }
-        // Retry only when the reported length strictly exceeds the
-        // current capacity — pattern P1 in the fleet audit.
-        if (rc == (int)Status.BufferTooSmall && blobLen > (nuint)blob.Length)
-        {
-            handle.Dispose();
-            blob = new byte[checked((int)blobLen)];
+            nuint blobLen;
+            PipelineHandle handle;
+            int rc;
             fixed (byte* p = blob)
             {
                 rc = NativeMethods.ITB_Triple_Init(
                     profile, optsStr, p, (nuint)blob.Length, out blobLen, out handle);
             }
+            // Retry only when the reported length strictly exceeds the
+            // current capacity — pattern P1 in the fleet audit.
+            if (rc == (int)Status.BufferTooSmall && blobLen > (nuint)blob.Length)
+            {
+                handle.Dispose();
+                System.Security.Cryptography.CryptographicOperations.ZeroMemory(blob);
+                blob = new byte[checked((int)blobLen)];
+                fixed (byte* p = blob)
+                {
+                    rc = NativeMethods.ITB_Triple_Init(
+                        profile, optsStr, p, (nuint)blob.Length, out blobLen, out handle);
+                }
+            }
+            if (rc != (int)Status.Ok)
+            {
+                handle.Dispose();
+                throw ItbException.FromRc(rc);
+            }
+            return new Pipeline(handle);
         }
-        if (rc != (int)Status.Ok)
+        finally
         {
-            handle.Dispose();
-            throw ItbException.FromRc(rc);
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(blob);
         }
-        return new Pipeline(handle);
     }
 
     /// <summary>
@@ -102,6 +110,7 @@ public sealed unsafe class Pipeline : IDisposable
             totalLen = checked(totalLen + len);
         }
         var mastersFlat = new byte[totalLen];
+        var blob = new byte[BlobCap];
         try
         {
             int off = 0;
@@ -114,7 +123,6 @@ public sealed unsafe class Pipeline : IDisposable
                     off += m.Length;
                 }
             }
-            var blob = new byte[BlobCap];
             nuint blobLen;
             PipelineHandle handle;
             int rc;
@@ -131,6 +139,7 @@ public sealed unsafe class Pipeline : IDisposable
             if (rc == (int)Status.BufferTooSmall && blobLen > (nuint)blob.Length)
             {
                 handle.Dispose();
+                System.Security.Cryptography.CryptographicOperations.ZeroMemory(blob);
                 blob = new byte[checked((int)blobLen)];
                 fixed (byte* pFlat = mastersFlat)
                 fixed (nuint* pLens = masterLens)
@@ -153,6 +162,7 @@ public sealed unsafe class Pipeline : IDisposable
         finally
         {
             System.Security.Cryptography.CryptographicOperations.ZeroMemory(mastersFlat);
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(blob);
         }
     }
 
@@ -348,14 +358,24 @@ public sealed unsafe class Pipeline : IDisposable
         }
         if (rc == (int)Status.BufferTooSmall && len > (nuint)buf.Length)
         {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(buf);
             buf = new byte[checked((int)len)];
             fixed (byte* p = buf)
             {
                 rc = fn(p, (nuint)buf.Length, out len);
             }
         }
+        if (rc != (int)Status.Ok)
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(buf);
+        }
         ItbException.Check(rc);
-        return Shrink(buf, len);
+        var res = Shrink(buf, len);
+        if (!ReferenceEquals(res, buf))
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(buf);
+        }
+        return res;
     }
 
     /// <summary>
