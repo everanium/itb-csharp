@@ -67,6 +67,7 @@ internal sealed class Config
     internal long ChunkSize;
     internal long BarrierFill;
     internal string Drbg = "";
+    internal string Interlock = "";
     internal int Gomaxprocs;
     internal long RekeyEvery;
     internal long BlobCycleEvery;
@@ -238,6 +239,7 @@ internal static class Program
         internal long Gomaxprocs;
         internal long Goroutines = 3;
         internal string Hash = "areion512";
+        internal string Interlock = "";
         internal long Iterations;
         internal bool JsonOutput;
         internal long KeyBits;
@@ -324,6 +326,10 @@ internal static class Program
                 "inner ITB hash primitive name",
                 false, DefaultOf(d.Hash),
                 (f, s) => { f.Hash = s; return true; }),
+            new Flag("interlock", "string",
+                "Interlocked Barrier chunk width: 48 | 168; empty = profile default (48; 168 requires 512-bit hash)",
+                false, DefaultOf(d.Interlock),
+                (f, s) => { f.Interlock = s; return true; }),
             new Flag("iterations", "int",
                 "fixed per-worker iteration count; 0 = duration-based",
                 false, "",
@@ -679,6 +685,12 @@ internal static class Program
             return (null, 2);
         }
         // --drbg is validated by Init: the C ABI enumerates no DRBG names.
+        if (f.Interlock is not ("" or "48" or "168"))
+        {
+            Console.Error.WriteLine(
+                $"loop: --interlock must be 48 | 168 (or empty = profile default), got \"{f.Interlock}\"");
+            return (null, 2);
+        }
         long? chunkSize = Size.ParseSize(f.ChunkSize);
         if (chunkSize is null)
         {
@@ -733,6 +745,7 @@ internal static class Program
             ChunkSize = chunkSize.Value,
             BarrierFill = f.BarrierFill,
             Drbg = f.Drbg,
+            Interlock = f.Interlock,
             Gomaxprocs = (int)f.Gomaxprocs,
             RekeyEvery = f.RekeyEvery,
             BlobCycleEvery = f.BlobCycleEvery,
@@ -845,6 +858,7 @@ internal static class Program
             .WithNonceBits(cfg.NonceBits)
             .WithBarrierFill(cfg.BarrierFill)
             .WithDrbg(cfg.Drbg)
+            .WithInterlock(cfg.Interlock)
             .WithChunkSize(cfg.ChunkSize);
         if (cfg.Profile.Length > 0)
         {
@@ -916,7 +930,8 @@ internal static class Program
             + $"chunk-size={rec.Chunk.ToString(inv)} mac={Dash(rec.Mac)} "
             + $"parallax={OnOff(rec.Parallax)} wrapper={OnOff(rec.Wrapper)}"
             + (rec.ContainerMode == 2 ? " container-mode=2" : "")
-            + (rec.Drbg.Length > 0 ? $" drbg={rec.Drbg}" : ""));
+            + (rec.Drbg.Length > 0 ? $" drbg={rec.Drbg}" : "")
+            + (rec.Interlock.Length > 0 ? $" interlock={rec.Interlock}" : ""));
     }
 
     // --------------------------------------------------------------
@@ -985,7 +1000,8 @@ internal static class Program
             + $"payload-mode={cfg.PayloadMode.Name()} seed={cfg.Seed.ToString(inv)} "
             + $"json-output={(cfg.JsonOutput ? "true" : "false")}"
             + (cfg.BlobMode != 1 ? $" blob-mode={cfg.BlobMode.ToString(inv)}" : "")
-            + (cfg.Drbg.Length > 0 ? $" drbg={cfg.Drbg}" : ""));
+            + (cfg.Drbg.Length > 0 ? $" drbg={cfg.Drbg}" : "")
+            + (cfg.Interlock.Length > 0 ? $" interlock={cfg.Interlock}" : ""));
         LogLine(
             $"policy: microbatch-tiers={PolicyLabel("ITB_MICROBATCH_TIERS")} "
             + $"hashpool-starters={PolicyLabel("ITB_HASHPOOL_STARTERS")}");

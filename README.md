@@ -74,11 +74,11 @@ byte[] plain = receiver.DecryptMessage(wire);
 
 The `Opts` builder overrides the profile default at `Init` (chunk
 size, outer cipher, parallax on/off, wrapper on/off, MAC name,
-palette, `MaxWorkers`); the blob the receiver loads carries the
+palette, `Interlock`, `MaxWorkers`); the blob the receiver loads carries the
 resolved shape, so `Load` takes no opts:
 
 ```csharp
-var opts = new Opts().WithMode(2).WithChunkSize(65536).WithWrapper(false);
+var opts = new Opts().WithMode(2).WithInterlock("168").WithChunkSize(65536).WithWrapper(false);
 using var sender = Pipeline.Init("singlemsg-triple-mac-v1", opts);
 using var receiver = Pipeline.Load(sender.Save());
 ```

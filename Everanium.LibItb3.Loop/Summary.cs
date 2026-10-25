@@ -326,6 +326,7 @@ internal static class Summary
             j.Append(",\"blob_mode\":").Append(D(cfg.BlobMode));
             j.Append(",\"drbg\":").Append(JsonString(cfg.Drbg));
             j.Append(",\"drbg_auto_tier\":").Append(JsonString(Everanium.Itb3.Runtime.DrbgAutoTier()));
+            j.Append(",\"interlock\":").Append(JsonString(cfg.Interlock));
             j.Append(",\"chunk_size_bytes\":").Append(D(cfg.ChunkSize));
             j.Append(",\"barrier_fill\":").Append(D(cfg.BarrierFill));
             j.Append(",\"parallax\":\"").Append(Program.OnOff(cfg.Parallax)).Append('"');

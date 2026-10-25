@@ -24,6 +24,10 @@ public sealed class Opts
     /// <summary>Container floor sizing mode: 1 (per-region, default) | 2 (per-container).</summary>
     public Opts WithMode(long n) => WithRaw("mode", n.ToString());
 
+    /// <summary>Interlocked Barrier chunk width: <c>"48"</c> (default)
+    /// | <c>"168"</c> (requires a 512-bit hash).</summary>
+    public Opts WithInterlock(string interlock) => WithRaw("interlock", interlock);
+
     /// <summary>Hex-encodes the parallax master override
     /// (<c>pm</c>).</summary>
     public Opts WithPermMaster(ReadOnlySpan<byte> master) => WithRaw("pm", Hex(master));

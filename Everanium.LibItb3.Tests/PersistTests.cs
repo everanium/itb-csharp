@@ -249,5 +249,46 @@ public class PersistTests
             () => Pipeline.InitKeys("singlemsg-triple-mac-v1", shortKeys));
         Assert.Equal(Status.BadInput, exShort.Status);
     }
+
+    [Fact]
+    public void InterlockRoundTripsAndInspects()
+    {
+        using var sender = Pipeline.Init("singlemsg-triple-mac-v1", new Opts().WithInterlock("168"));
+        var wire = sender.EncryptMessage(Plain);
+        Assert.Equal(Plain, sender.DecryptMessage(wire));
+        var blob = sender.Save();
+        var prof = Pipeline.Inspect(blob);
+        Assert.Equal("168", prof.Interlock);
+        Assert.Contains("\"interlock\":\"168\"", prof.ToJson());
+        Assert.Equal("168", prof.Clone().Interlock);
+        Assert.Equal("168", Profile.FromJson(prof.ToJson()).Interlock);
+        using var receiver = Pipeline.Load(blob);
+        Assert.Equal(Plain, receiver.DecryptMessage(wire));
+        Assert.Equal(Plain, sender.DecryptMessage(receiver.EncryptMessage(Plain)));
+    }
+
+    [Fact]
+    public void DefaultInterlockIsAbsent()
+    {
+        using var pipe = Pipeline.Init("singlemsg-triple-mac-v1");
+        var prof = Pipeline.Inspect(pipe.Save());
+        Assert.Equal("", prof.Interlock);
+        Assert.DoesNotContain("\"interlock\"", prof.ToJson());
+        var registry = Pipeline.Lookup("singlemsg-triple-mac-v1");
+        Assert.Equal("", registry.Interlock);
+        Assert.DoesNotContain("\"interlock\"", registry.ToJson());
+    }
+
+    [Fact]
+    public void InterlockRejectsInvalidAnd256BitHash()
+    {
+        var ex256 = Assert.Throws<ItbException>(
+            () => Pipeline.Init("singlemsg-triple-mac-v1", new Opts().WithInnerHash("blake3").WithInterlock("168")));
+        Assert.Equal(Status.BadInput, ex256.Status);
+
+        var exInvalid = Assert.Throws<ItbException>(
+            () => Pipeline.Init("singlemsg-triple-mac-v1", new Opts().WithInterlock("96")));
+        Assert.Equal(Status.BadInput, exInvalid.Status);
+    }
 }
 

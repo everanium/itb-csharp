@@ -80,6 +80,11 @@ public sealed class Profile
     /// absent, which keeps the auto tier.</summary>
     public string Drbg { get; set; } = "";
 
+    /// <summary>Interlocked Barrier chunk width (<c>interlock</c>):
+    /// <c>"48"</c> or <c>"168"</c>; empty when absent, which keeps
+    /// the 48-bit default.</summary>
+    public string Interlock { get; set; } = "";
+
     /// <summary>MAC name (<c>mac</c>); empty on a No MAC
     /// profile.</summary>
     public string Mac { get; set; } = "";
@@ -128,6 +133,7 @@ public sealed class Profile
             if (BarrierFill.HasValue) w.WriteNumber("barrier_fill", BarrierFill.Value);
             if (ContainerMode.HasValue) w.WriteNumber("container_mode", ContainerMode.Value);
             if (Drbg.Length > 0) w.WriteString("drbg", Drbg);
+            if (Interlock.Length > 0) w.WriteString("interlock", Interlock);
             if (Mac.Length > 0) w.WriteString("mac", Mac);
             if (TagStub != 0) w.WriteNumber("tagstub", TagStub);
             if (Chunk != 0) w.WriteNumber("chunk", Chunk);
@@ -162,6 +168,7 @@ public sealed class Profile
                 case "barrier_fill": p.BarrierFill = prop.Value.GetInt32(); break;
                 case "container_mode": p.ContainerMode = prop.Value.GetInt32(); break;
                 case "drbg": p.Drbg = prop.Value.GetString() ?? ""; break;
+                case "interlock": p.Interlock = prop.Value.GetString() ?? ""; break;
                 case "mac": p.Mac = prop.Value.GetString() ?? ""; break;
                 case "tagstub": p.TagStub = prop.Value.GetInt32(); break;
                 case "chunk": p.Chunk = prop.Value.GetInt32(); break;
