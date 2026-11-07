@@ -103,6 +103,14 @@ public class PersistTests
             Assert.Equal(4, Profile.FromJson(prof.ToJson()).BarrierFill);
         }
 
+        using (var pipe3 = Pipeline.Init("streaming-aead-triple-mac-v1", new Opts().WithMode(3)))
+        {
+            var prof3 = Pipeline.Inspect(pipe3.Save());
+            Assert.Equal(3, prof3.ContainerMode);
+            Assert.Contains("\"container_mode\":3", prof3.ToJson());
+            Assert.Equal(3, prof3.Clone().ContainerMode);
+        }
+
         // The registry entry is the recipe alone — neither field is
         // part of it, so both read as absent rather than as zero.
         var registry = Pipeline.Lookup("streaming-aead-triple-mac-v1");

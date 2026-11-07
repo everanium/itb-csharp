@@ -295,7 +295,7 @@ internal static class Program
                 false, "",
                 (f, s) => StoreInt(s, out f.BlobCycleEvery)),
             new Flag("blob-mode", "int",
-                "container floor sizing mode: 1 (per-region, default) | 2 (per-container)",
+                "container floor sizing mode: 1 (per-region, default) | 2 (per-container) | 3 (gauss-posit)",
                 false, DefaultOf(d.BlobMode),
                 (f, s) => StoreInt(s, out f.BlobMode)),
             new Flag("chunk-size", "string",
@@ -670,10 +670,10 @@ internal static class Program
                 + $"got {f.NonceBits.ToString(inv)}");
             return (null, 2);
         }
-        if (f.BlobMode is not (1 or 2))
+        if (f.BlobMode is not (1 or 2 or 3))
         {
             Console.Error.WriteLine(
-                "loop: --blob-mode must be 1 (per-region) | 2 (per-container), "
+                "loop: --blob-mode must be 1 (per-region) | 2 (per-container) | 3 (gauss-posit), "
                 + $"got {f.BlobMode.ToString(inv)}");
             return (null, 2);
         }
@@ -929,7 +929,7 @@ internal static class Program
             + $"barrier-fill={(rec.BarrierFill ?? 0).ToString(inv)} "
             + $"chunk-size={rec.Chunk.ToString(inv)} mac={Dash(rec.Mac)} "
             + $"parallax={OnOff(rec.Parallax)} wrapper={OnOff(rec.Wrapper)}"
-            + (rec.ContainerMode == 2 ? " container-mode=2" : "")
+            + (rec.ContainerMode is 2 or 3 ? $" container-mode={rec.ContainerMode.Value.ToString(inv)}" : "")
             + (rec.Drbg.Length > 0 ? $" drbg={rec.Drbg}" : "")
             + (rec.Interlock.Length > 0 ? $" interlock={rec.Interlock}" : ""));
     }
